@@ -575,9 +575,10 @@ function rResumen(el){
   const {desde,hasta}=rangoRep();
   const f=D.mov.filter(x=>{const m=x.f.slice(0,7);return m>=desde&&m<=hasta});
   const ing=suma(f,'Ingreso'),gas=suma(f,'Gasto');
-  const nMeses=(()=>{let n=0,m=desde;while(m<=hasta&&n<120){n++;m=mesAdd(m,1)}return n})();
+  const nMeses=(()=>{const p=(D.mov.map(x=>x.f.slice(0,7)).sort()[0])||desde;let n=0,m=desde<p?p:desde;while(m<=hasta&&n<120){n++;m=mesAdd(m,1)}return Math.max(1,n)})();
   // barras mensuales: el rango (mín. 6 meses hacia atrás desde 'hasta')
-  const ini=S.rep==='mes'?mesAdd(hasta,-5):desde; const meses=[];for(let m=ini;m<=hasta;m=mesAdd(m,1))meses.push(m);
+  const primero=(D.mov.map(x=>x.f.slice(0,7)).sort()[0])||desde;
+  const ini=S.rep==='mes'?mesAdd(hasta,-5):(desde<primero?primero:desde); const meses=[];for(let m=ini;m<=hasta;m=mesAdd(m,1))meses.push(m);
   const bm=meses.map(m=>{const a=D.mov.filter(x=>enMes(x,m));return [m,suma(a,'Ingreso'),suma(a,'Gasto')]});
   const maxM=Math.max(1,...bm.flatMap(x=>[x[1],x[2]]));
   const porCat=t=>{const o={};f.filter(x=>x.t===t).forEach(x=>o[x.c]=(o[x.c]||0)+x.m);return Object.entries(o).sort((a,b)=>b[1]-a[1])};
@@ -610,7 +611,7 @@ function rReportes(){
   el.querySelectorAll('[data-rt]').forEach(b=>b.onclick=()=>{S.repTab=b.dataset.rt;rReportes();window.scrollTo(0,0)});
   const body=el.querySelector('#repBody');
   ({resumen:rResumen,ritmo:rRitmo,tarjetas:rTarjetas,patrimonio:rPatrimonio,inversiones:rInversiones})[S.repTab](body);
-  const act=el.querySelector('.rtabs .on'); if(act) act.scrollIntoView({inline:'center',block:'nearest'});
+  const act=el.querySelector('.rtabs .on'), cont=el.querySelector('.rtabs'); if(act&&cont) cont.scrollLeft=act.offsetLeft-(cont.clientWidth-act.offsetWidth)/2;
 }
 
 /* utilidades de gráficas (SVG) */
@@ -659,8 +660,8 @@ function rRitmo(el){
       <div class="stat"><small>${mesCorto(pm)} al día ${Math.min(dia,dp)}</small><b class="num">${fmt(prevAl)}</b>${prevAl?`<div class="delta ${dif>0?'gas':'ing'}">${dif>0?'▲':'▼'} ${Math.abs(dif).toFixed(0)}% ${dif>0?'más rápido':'más lento'}</div>`:''}</div>
       ${proy?`<div class="stat big"><small>Si sigues a este ritmo, cerrarías ${MESES[partes(m+'-01')[1]-1].toLowerCase()} en</small><b class="num" style="font-size:22px">${fmt(proy)}</b></div>`:''}
     </div>
-    ${svgLineas([{v:prom,color:'var(--muted)',punteada:true,ancho:1.6},{v:prev,color:'#94A3B8',ancho:1.8},{v:cur,color:'var(--gas)',punto:true,ancho:2.6}],n,{xlab:[[0,'1'],[9,'10'],[19,'20'],[n-1,String(n)]],marca:esAct?dia-1:null})}
-    ${leyenda([['var(--gas)',mesNombre(m)],['#94A3B8',mesNombre(pm)],['var(--muted)','Promedio 3 meses',1]])}
+    ${svgLineas([{v:prom,color:'#F59E0B',punteada:true,ancho:1.8},{v:prev,color:'var(--tra)',ancho:2},{v:cur,color:'var(--gas)',punto:true,ancho:2.6}],n,{xlab:[[0,'1'],[9,'10'],[19,'20'],[n-1,String(n)]],marca:esAct?dia-1:null})}
+    ${leyenda([['var(--gas)',mesNombre(m)],['var(--tra)',mesNombre(pm)],['#F59E0B','Promedio 3 meses (punteada)']])}
   </div>
   <div class="card"><h2>Categorías vs tu promedio</h2><div class="small muted" style="margin:-4px 0 8px">Gasto al día ${dia} comparado con tu promedio de los 3 meses anteriores al mismo día</div>
     ${cats.length?cats.map(x=>{const up=x.d>0, fuerte=x.pct!=null&&Math.abs(x.pct)>=20;
