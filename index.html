@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F5FA">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121019">
 <title>Mis Finanzas</title>
@@ -107,7 +107,7 @@ nav.bottom button.on{color:var(--acc);font-weight:600}
 nav.bottom .fab{width:56px;height:56px;border-radius:18px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-top:-26px;box-shadow:0 6px 18px rgba(109,40,217,.35);min-width:0;padding:0}
 nav.bottom .fab svg{width:28px;height:28px;stroke-width:2.4}
 /* sheet (form) */
-.sheet{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;flex-direction:column}
+.sheet{position:fixed;top:0;left:0;right:0;height:100vh;height:100dvh;z-index:50;background:var(--bg);display:none;flex-direction:column}
 .sheet.on{display:flex}
 .sheet header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;border-bottom:1px solid var(--line);background:var(--card)}
 .sheet header h3{flex:1;margin:0;font-size:17px}
@@ -370,11 +370,25 @@ function catsDe(tipo){return [...new Set(D.cat.filter(c=>c.tipo===tipo).map(c=>c
 
 /* ============ navegación ============ */
 const TITULOS={inicio:'Inicio',movs:'Movimientos',cuentas:'Cuentas',reportes:'Reportes',ajustes:'Ajustes'};
-function ir(v){
+function ir(v,desdeAtras){
+  if(!desdeAtras&&v!==S.view&&S.view!=='setup') history.pushState({v},'');
+  const mismo=v===S.view;
   S.view=v; document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
   document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  $('#title').textContent=TITULOS[v]; render(); window.scrollTo(0,0);
+  $('#title').textContent=TITULOS[v]; render(); if(!mismo) window.scrollTo(0,0);
 }
+/* ventanas (formularios) y botón/gesto "atrás" de Android */
+function abrirModal(id){ const el=$('#'+id); if(el.classList.contains('on')) return; el.classList.add('on'); history.pushState({modal:id},'') }
+function cerrarModal(id){ const el=$('#'+id); if(!el.classList.contains('on')) return;
+  if(history.state&&history.state.modal===id) history.back(); else ocultar(id) }
+function ocultar(id){ $('#'+id).classList.remove('on'); if(id==='sheet') S.form=null }
+window.addEventListener('popstate',e=>{
+  const st=e.state||{};
+  if(st.modal!=='sheet2') ocultar('sheet2');
+  if(st.modal!=='sheet'&&st.modal!=='sheet2') ocultar('sheet');
+  if(!st.modal&&S.view!=='setup'){ const v=st.v||'inicio'; if(v!==S.view) ir(v,true) }
+});
+history.replaceState({v:'inicio'},'');
 document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.onclick=()=>{ if(b.dataset.v==='movs'){S.acc='';S.cat='';S.sub=''} ir(b.dataset.v) });
 $('#btnAjustes').onclick=()=>ir('ajustes');
 $('#btnRefresh').onclick=async()=>{await vaciarCola();await cargar()};
@@ -648,7 +662,7 @@ function formCat(tipo,o){
   if(!nuevo&&usados) campos+=`<p class="small muted" style="margin-top:16px">Se usa en ${usados} movimientos. Si cambias el nombre, también se actualizan esos movimientos.</p>`;
   $('#form2Body').innerHTML=campos;
   $('#form2Foot').innerHTML=`${!nuevo?`<button class="btn dan" id="cDel" ${usados?'disabled title="En uso"':''}>Borrar</button>`:''}<button class="btn pri" id="cSave">Guardar</button>`;
-  $('#sheet2').classList.add('on');
+  abrirModal('sheet2');
   if(tipo==='met') $('#cTipo').onchange=e=>$('#tarBox').style.display=e.target.value==='Crédito'?'block':'none';
   $('#cSave').onclick=async()=>{
     const n=$('#cNombre').value.trim(); if(!n) return toast('Escribe un nombre');
@@ -662,7 +676,7 @@ function formCat(tipo,o){
         if(corte>31||pago>31) throw new Error('Los días deben ser de 1 a 31');
         const t=D.tar.find(x=>x.met===o.nombre||x.met===n);
         if(corte||pago||t) await api('guardarCatalogo','tar',{id:t?t.id:'',met:n,corte,pago,limite:parseFloat($('#cLim').value)||0});}
-      $('#sheet2').classList.remove('on'); await cargar(true); toast('Guardado') }
+      cerrarModal('sheet2'); await cargar(true); toast('Guardado') }
     catch(e){ toast('No se pudo guardar: '+(e.message||e)); $('#cSave').disabled=false }
     syncing(false);
   };
@@ -670,11 +684,11 @@ function formCat(tipo,o){
     if(usados) return toast('No se puede borrar: está en uso');
     if(!confirm('¿Borrar "'+o.nombre+'"?')) return;
     syncing(true);
-    try{ await api('borrarCatalogo',tipo,o.id); $('#sheet2').classList.remove('on'); await cargar(true); toast('Borrado') }catch(e){ toast('Error: '+(e.message||e)) }
+    try{ await api('borrarCatalogo',tipo,o.id); cerrarModal('sheet2'); await cargar(true); toast('Borrado') }catch(e){ toast('Error: '+(e.message||e)) }
     syncing(false);
   };
 }
-$('#sheet2Close').onclick=()=>$('#sheet2').classList.remove('on');
+$('#sheet2Close').onclick=()=>cerrarModal('sheet2');
 
 function formPresupuestos(){
   $('#sheet2Title').textContent='Presupuestos mensuales';
@@ -684,12 +698,12 @@ function formPresupuestos(){
       return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(av)}/mes</div></div><input class="field" data-pc="${esc(c)}" inputmode="decimal" placeholder="${Math.round(av/100)*100||''}" value="${pr?pr.monto:''}"></div>`}).join('')+
     `<button class="link-btn" id="usarProm">Usar los promedios como presupuesto</button>`;
   $('#form2Foot').innerHTML=`<button class="btn pri" id="pSave">Guardar presupuestos</button>`;
-  $('#sheet2').classList.add('on');
+  abrirModal('sheet2');
   $('#usarProm').onclick=()=>document.querySelectorAll('[data-pc]').forEach(i=>{if(!i.value)i.value=i.placeholder});
   $('#pSave').onclick=async()=>{
     const lista=[...document.querySelectorAll('[data-pc]')].map(i=>({cat:i.dataset.pc,monto:parseFloat(String(i.value).replace(/[^0-9.]/g,''))||0})).filter(x=>x.monto>0);
     $('#pSave').disabled=true; syncing(true);
-    try{await api('guardarPresupuestos',lista);D.pre=lista.map((x,i)=>({id:i+1,...x}));store.set(CACHE_KEY,D);$('#sheet2').classList.remove('on');render();toast('Presupuestos guardados')}
+    try{await api('guardarPresupuestos',lista);D.pre=lista.map((x,i)=>({id:i+1,...x}));store.set(CACHE_KEY,D);cerrarModal('sheet2');render();toast('Presupuestos guardados')}
     catch(e){toast('Error: '+(e.message||e));$('#pSave').disabled=false}
     syncing(false);
   };
@@ -729,14 +743,14 @@ function formRec(r){
       if(R.t==='Transferencia'&&!R.d) return toast('Elige la cuenta destino');
       if(!R.prox) return toast('Elige la próxima fecha');
       R.m=imp; R.dia=partes(R.prox)[2]; $('#rSave').disabled=true; syncing(true);
-      try{await api('guardarCatalogo','rec',R);$('#sheet2').classList.remove('on');await cargar(true);toast('Recurrente guardado')}
+      try{await api('guardarCatalogo','rec',R);cerrarModal('sheet2');await cargar(true);toast('Recurrente guardado')}
       catch(e){toast('Error: '+(e.message||e));$('#rSave').disabled=false}
       syncing(false);
     };
     const del=$('#rDel'); if(del) del.onclick=async()=>{ if(!confirm('¿Borrar el recurrente "'+R.nombre+'"? Los movimientos ya registrados no se borran.'))return;
-      syncing(true);try{await api('borrarCatalogo','rec',R.id);$('#sheet2').classList.remove('on');await cargar(true);toast('Borrado')}catch(e){toast('Error: '+(e.message||e))}syncing(false)};
+      syncing(true);try{await api('borrarCatalogo','rec',R.id);cerrarModal('sheet2');await cargar(true);toast('Borrado')}catch(e){toast('Error: '+(e.message||e))}syncing(false)};
   };
-  dibujar(); $('#sheet2').classList.add('on');
+  dibujar(); abrirModal('sheet2');
 }
 
 /* ============ formulario de movimiento ============ */
@@ -745,9 +759,9 @@ function abrirForm(m){
   S.form=m?{...m}:{id:'',f:hoy,t:'Gasto',c:'',s:'',o:'',d:'',m:'',n:''};
   if(!m){ const u=uso(x=>x.t==='Gasto','o',60); S.form.o=Object.keys(u).sort((a,b)=>u[b]-u[a])[0]||'' }
   $('#sheetTitle').textContent=S.form._rec?'Registrar recurrente':(m&&m.id)?'Editar movimiento':'Nuevo movimiento';
-  $('#sheet').classList.add('on'); dibujarForm(true);
+  abrirModal('sheet'); dibujarForm(true);
 }
-function cerrarForm(){$('#sheet').classList.remove('on');S.form=null}
+function cerrarForm(){cerrarModal('sheet')}
 $('#sheetClose').onclick=cerrarForm;
 
 function chipsHTML(lista,sel,attr,extra=''){return lista.map(v=>`<button class="chip ${v===sel?'on':''}" data-${attr}="${esc(v)}">${esc(v)}</button>`).join('')+extra}
@@ -762,7 +776,7 @@ function dibujarForm(focus){
   const lblO=esT?'Desde':F.t==='Ingreso'?'Recibido en':'Pagado con';
   $('#formBody').innerHTML=`
     <div class="seg">${['Gasto','Ingreso','Transferencia'].map(t=>`<button data-t="${t}" class="${F.t===t?'on':''}">${t}</button>`).join('')}</div>
-    <div class="amount"><span>$</span><input id="fImp" inputmode="decimal" placeholder="0.00" value="${F.m===''?'':F.m}" autocomplete="off"></div>
+    <div class="amount"><span>$</span><input id="fImp" inputmode="decimal" enterkeyhint="done" placeholder="0.00" value="${F.m===''?'':F.m}" autocomplete="off"></div>
     ${esT?'':`<div class="lbl">Categoría</div><div class="chips wrap">${chipsHTML(cats,F.c,'c')}</div>
     ${F.c?`<div class="lbl">Subcategoría</div><div class="chips wrap">${chipsHTML(subs,F.s,'s',`<button class="chip add" id="addSub">+ Nueva</button>`)}</div><div id="newSubBox"></div>`:''}`}
     <div class="lbl">${lblO}</div><div class="chips wrap">${chipsHTML(ordenarPorUso(mets,usoO),F.o,'o')}</div>
@@ -774,7 +788,7 @@ function dibujarForm(focus){
   $('#formFoot').innerHTML=F._rec?`<button class="btn pri" id="fSave">Registrar</button>`:F.id?`<button class="btn dan" id="fDel" aria-label="Borrar"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button><button class="btn sec" id="fDup">Duplicar</button><button class="btn pri" id="fSave">Guardar</button>`
     :`<button class="btn sec" id="fSaveNew">Guardar y otro</button><button class="btn pri" id="fSave">Guardar</button>`;
   const body=$('#formBody');
-  const imp=$('#fImp'); imp.oninput=()=>{F.m=imp.value};
+  const imp=$('#fImp'); imp.oninput=()=>{F.m=imp.value}; imp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();imp.blur()}};
   if(focus&&!F.id) setTimeout(()=>imp.focus(),80);
   $('#fNota').oninput=e=>F.n=e.target.value;
   $('#fFecha').onchange=e=>{F.f=e.target.value;dibujarForm()};
