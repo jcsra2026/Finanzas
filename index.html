@@ -450,11 +450,15 @@ const TITULOS={inicio:'Inicio',movs:'Movimientos',cuentas:'Cuentas',reportes:'Re
    - Ajustes se abre encima de la página actual: "atrás" regresa a la página desde donde se abrió.
    - Formularios (ventanas) se abren encima de todo: "atrás" o la ✕ los cierran y dejan la página como estaba. */
 function nivel(){return (history.state&&history.state.d)||0}
-function ir(v,desdeAtras){
+function ir(v,desdeAtras,pestana){
+  // pestana=true: se tocó una pestaña de abajo. Si no, es un "detalle" (tocaste algo dentro de una página) y "atrás" regresa a esa página.
   if(!desdeAtras&&v!==S.view&&S.view!=='setup'){
-    if(v==='inicio'){ if(nivel()>0){ S.scroll[S.view]=scrollY; history.go(-nivel()); return } }
-    else if(v==='ajustes'||S.view==='inicio') history.pushState({v,d:nivel()+1},'');
-    else history.replaceState({v,d:nivel()},'');
+    S.scroll[S.view]=scrollY;
+    if(pestana&&v==='inicio'){ if(nivel()>0){ history.go(-nivel()); return } }
+    else if(pestana&&nivel()>1){ // desde un detalle: vuelve al nivel de pestañas y cambia a la pestaña elegida
+      S.despues=()=>{ history.replaceState({v,d:1},''); ir(v,true) }; history.go(-(nivel()-1)); return }
+    else if(pestana&&S.view!=='inicio') history.replaceState({v,d:nivel()},'');
+    else history.pushState({v,d:nivel()+1},'');
   }
   const mismo=v===S.view;
   if(!mismo) S.scroll[S.view]=scrollY;
@@ -476,7 +480,7 @@ window.addEventListener('popstate',e=>{
   if(S.despues){ const f=S.despues; S.despues=null; f() }
 });
 history.replaceState({v:'inicio',d:0},'');
-document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.onclick=()=>{ if(b.dataset.v==='movs'){S.acc='';S.cat='';S.sub=''} ir(b.dataset.v) });
+document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.onclick=()=>{ if(b.dataset.v==='movs'){S.acc='';S.cat='';S.sub='';S.tipo=''} ir(b.dataset.v,false,true) });
 $('#btnAjustes').onclick=()=>ir('ajustes');
 $('#btnRefresh').onclick=async()=>{await vaciarCola();await cargar()};
 $('#fab').onclick=()=>{abrirForm();S.form._fab=true};
@@ -1135,7 +1139,7 @@ async function guardar(otro){
   const rec=F._rec?D.rec.find(x=>x.id===F._rec):null, sig=rec?avanzar(rec.prox,rec.frec,rec.dia):'';
   if(rec) rec.prox=sig;
   if(otro){ S.form={id:'',f:F.f,t:F.t,c:'',s:'',o:F.o,d:'',m:'',n:'',_fab:F._fab}; dibujarForm(true); S.mes=m.f.slice(0,7); render() }
-  else if(nuevo&&F._fab){ cerrarModal('sheet',()=>{ S.mes=m.f.slice(0,7); S.q='';S.tipo='';S.acc='';S.cat='';S.sub=''; ir('movs'); window.scrollTo(0,0) }) }
+  else if(nuevo&&F._fab){ cerrarModal('sheet',()=>{ S.mes=m.f.slice(0,7); S.q='';S.tipo='';S.acc='';S.cat='';S.sub=''; ir('movs',false,true); window.scrollTo(0,0) }) }
   else { cerrarForm(); S.mes=m.f.slice(0,7); render() } toast(rec?'Registrado · siguiente '+fCorta(sig):nuevo?'Guardado':'Actualizado');
   syncing(true);
   const payload={...m,id:nuevo?'':m.id};
