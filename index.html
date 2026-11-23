@@ -475,7 +475,7 @@ function rInicio(){
   const T={
     pre:()=>presupuestoHTML(byC),
     pat:()=>{const sal=saldos();let disp=0,deuda=0;Object.entries(sal).forEach(([k,v])=>{if(tipoMetodo(k)==='Crédito')deuda+=v;else disp+=v});
-      return `<div class="card" id="goCuentas" style="cursor:pointer"><div class="hero">
+      return `<div class="card" id="goCuentas" style="cursor:pointer"><h2>Patrimonio</h2><div class="hero">
       <div class="stat"><small>Disponible en cuentas</small><b class="num">${fmt(disp)}</b></div>
       <div class="stat"><small>Deuda en tarjetas</small><b class="num gas">${fmt(Math.abs(deuda))}</b></div>
       <div class="stat big"><small>Patrimonio neto</small><b class="num" style="font-size:22px">${fmt(disp+deuda)}</b></div></div></div>`},
@@ -489,8 +489,8 @@ function rInicio(){
     ritmo:()=>ritmoCardHTML(S.mes)
   };
   el.innerHTML=alertasHTML()+monthBar()+`
-  <div class="card"><div class="hero">
-    <div class="stat big"><small>Balance del mes</small><b class="num ${ing-gas>=0?'ing':'gas'}">${fmt(ing-gas)}</b></div>
+  <div class="card"><h2>Balance del mes</h2><div class="hero">
+    <div class="stat big"><b class="num ${ing-gas>=0?'ing':'gas'}">${fmt(ing-gas)}</b></div>
     <div class="stat"><small>Ingresos</small><b class="num ing">${fmt(ing)}</b></div>
     <div class="stat"><small>Gastos</small><b class="num gas">${fmt(gas)}</b>${gasP?`<div class="delta muted">${dp>=0?'▲':'▼'} ${Math.abs(dp).toFixed(0)}% vs ${mesCorto(mesAdd(S.mes,-1))}${esActI?' al día '+diaI:''}</div>`:''}</div>
   </div></div>`+layoutInicio().filter(x=>x.on).map(x=>T[x.id]()).join('');
@@ -589,8 +589,8 @@ function rCuentas(){
     if(!e.pagado&&e.dias<0) return `<span class="gas">Sin pago registrado (límite ${fCorta(e.pagoF)})</span> · ${cor}${lin}`;
     if(!e.pagado) return `<span class="${e.dias<=3?'gas':e.dias<=7?'warn':''}">Pagar antes del ${fCorta(e.pagoF)} (${cuando(e.dias)})</span> · ${cor}${lin}`;
     return `<span class="ing">Pago registrado ✓</span> · ${cor}${lin}`};
-  el.innerHTML=`<div class="card"><div class="hero">
-    <div class="stat big"><small>Patrimonio neto</small><b class="num">${fmt(disp+deuda)}</b></div>
+  el.innerHTML=`<div class="card"><h2>Patrimonio neto</h2><div class="hero">
+    <div class="stat big"><b class="num">${fmt(disp+deuda)}</b></div>
     <div class="stat"><small>Disponible</small><b class="num ing">${fmt(disp)}</b></div>
     <div class="stat"><small>Deuda tarjetas</small><b class="num gas">${fmt(Math.abs(deuda))}</b></div></div></div>`+
   Object.entries(grupos).filter(([,a])=>a.length).map(([t,arr])=>{
@@ -625,8 +625,8 @@ function rResumen(el){
   const pm={};f.filter(x=>x.t==='Gasto').forEach(x=>pm[x.o]=(pm[x.o]||0)+x.m);const pmL=Object.entries(pm).sort((a,b)=>b[1]-a[1]);
   el.innerHTML=`<div class="chips">${[['mes','Mes'],['3m','3 meses'],['6m','6 meses'],['anio','Este año'],['todo','Todo']].map(([k,l])=>`<button class="chip ${S.rep===k?'on':''}" data-r="${k}">${l}</button>`).join('')}</div>
   ${S.rep==='mes'?monthBar():`<div class="small muted" style="padding:0 4px 8px">${mesNombre(desde)} – ${mesNombre(hasta)}</div>`}
-  <div class="card"><div class="hero">
-    <div class="stat big"><small>Balance</small><b class="num ${ing-gas>=0?'ing':'gas'}">${fmt(ing-gas)}</b></div>
+  <div class="card"><h2>Balance del periodo</h2><div class="hero">
+    <div class="stat big"><b class="num ${ing-gas>=0?'ing':'gas'}">${fmt(ing-gas)}</b></div>
     <div class="stat"><small>Ingresos</small><b class="num ing">${fmt(ing)}</b></div>
     <div class="stat"><small>Gastos</small><b class="num gas">${fmt(gas)}</b>${nMeses>1?`<div class="delta muted">Promedio ${fmt0(gas/nMeses)}/mes</div>`:''}</div>
   </div></div>
@@ -746,8 +746,8 @@ function rPatrimonio(el){
   const filas=meses.map((m,i)=>{const a=D.mov.filter(x=>enMes(x,m));const I=suma(a,'Ingreso'),G=suma(a,'Gasto');return {m,I,G,A:I-G,t:I?(I-G)/I*100:null,p:pat[i]}});
   const tot=filas.reduce((a,f)=>({I:a.I+f.I,G:a.G+f.G}),{I:0,G:0}); const tasa=tot.I?(tot.I-tot.G)/tot.I*100:0;
   const cambio=pat[pat.length-1]-ini;
-  el.innerHTML=`<div class="card"><div class="hero">
-    <div class="stat big"><small>Patrimonio neto hoy</small><b class="num">${fmt(pat[pat.length-1]||ini)}</b><div class="delta ${cambio>=0?'ing':'gas'}">${cambio>=0?'▲':'▼'} ${fmt(Math.abs(cambio))} desde ${mesNombre(meses[0]).toLowerCase()}</div></div>
+  el.innerHTML=`<div class="card"><h2>Patrimonio neto hoy</h2><div class="hero">
+    <div class="stat big"><b class="num">${fmt(pat[pat.length-1]||ini)}</b><div class="delta ${cambio>=0?'ing':'gas'}">${cambio>=0?'▲':'▼'} ${fmt(Math.abs(cambio))} desde ${mesNombre(meses[0]).toLowerCase()}</div></div>
     <div class="stat"><small>Tasa de ahorro total</small><b class="num ${tasa>=0?'ing':'gas'}">${tasa.toFixed(1)}%</b></div>
     <div class="stat"><small>Ahorro promedio</small><b class="num ${tot.I-tot.G>=0?'ing':'gas'}">${fmt0((tot.I-tot.G)/meses.length)}/mes</b></div></div></div>
   <div class="card"><h2>Patrimonio al cierre de cada mes</h2>${svgLineas([{v:pat,color:'var(--acc)',punto:true,ancho:2.6}],pat.length,{desdeCero:false,xlab:meses.map((m,i)=>[i,mesCorto(m)])})}</div>
@@ -799,8 +799,8 @@ function rInversiones(el){
   // generado por mes (valores)
   const tablaHTML=`<div class="card"><h2>Generado por mes</h2>${meses.map((m,i)=>({m,i})).reverse().map(({m,i})=>`<div class="al-row"><div class="mid"><div class="t1">${mesNombre(m)}${m===hoy.slice(0,7)?' <span class="small muted">(en curso)</span>':''}</div><div class="t2">${plats.filter(p=>por[i][p]).map(p=>esc(p)+' '+fmt0(por[i][p])).join(' · ')||'—'}</div></div><div class="right"><div class="num ing" style="font-weight:700">${fmt(totMes[i])}</div><div class="small muted">acum. ${fmt0(acum[i])}</div></div></div>`).join('')}
     <div class="al-row"><div class="mid"><b>Total</b></div><div class="right num ing" style="font-weight:800">${fmt(total)}</div></div></div>`;
-  el.innerHTML=metaHTML+`<div class="card"><div class="hero">
-    <div class="stat big"><small>Tus inversiones te han generado</small><b class="num ing">${fmt(total)}</b><div class="delta muted">desde ${mesNombre(meses[0]).toLowerCase()}</div></div>
+  el.innerHTML=metaHTML+`<div class="card"><h2>Tus inversiones te han generado</h2><div class="hero">
+    <div class="stat big"><b class="num ing">${fmt(total)}</b><div class="delta muted">desde ${mesNombre(meses[0]).toLowerCase()}</div></div>
     <div class="stat"><small>Último mes (${ult?mesCorto(ult):'—'})</small><b class="num ing">${fmt(ultTot)}</b></div>
     <div class="stat"><small>Al año, a este ritmo</small><b class="num ing">${fmt0(prom3*12)}</b><div class="delta muted">prom. 3 meses × 12</div></div></div></div>
   <div class="card"><h2>Rendimiento por mes</h2>
