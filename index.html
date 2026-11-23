@@ -73,7 +73,7 @@ main{padding:0 16px}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 /* list */
-.day{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-weight:600;padding:14px 4px 6px;text-transform:capitalize}
+.day{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-weight:600;padding:14px 4px 6px}
 .items{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
 .item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left}
 .item:last-child{border-bottom:0}
@@ -343,6 +343,9 @@ function saldos(){
 function fecha(y,m,d){while(m<1){m+=12;y--}while(m>12){m-=12;y++}const u=new Date(y,m,0).getDate();return y+'-'+String(m).padStart(2,'0')+'-'+String(Math.min(d,u)).padStart(2,'0')}
 function partes(f){return String(f).split('-').map(Number)}
 function dias(a,b){const x=partes(a),y=partes(b);return Math.round((new Date(y[0],y[1]-1,y[2])-new Date(x[0],x[1]-1,x[2]))/864e5)}
+function diaTexto(f){ // "Lunes 23 de nov" (solo la primera letra en mayúscula, como se escribe en español)
+  const p=partes(f), dd=new Date(p[0],p[1]-1,p[2]); const dia=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][dd.getDay()];
+  return dia[0].toUpperCase()+dia.slice(1)+' '+p[2]+' de '+MESES[p[1]-1].slice(0,3).toLowerCase()+(p[0]!==partes(D.hoy||hoyLocal())[0]?' '+p[0]:'')}
 function fCorta(f){const p=partes(f);return p[2]+' '+MESES[p[1]-1].slice(0,3).toLowerCase()}
 function cuando(n){return n<0?`hace ${-n} día${n===-1?'':'s'}`:n===0?'hoy':n===1?'mañana':`en ${n} días`}
 const FRECS=['Semanal','Quincenal','Mensual','Bimestral','Trimestral','Anual'];
@@ -567,7 +570,7 @@ function rMovs(){
   <div class="small muted" style="padding:2px 4px">${f.length} movimientos · <span class="ing">+${fmt(ing)}</span> · <span class="gas">-${fmt(gas)}</span></div>
   ${Object.keys(grupos).length?Object.entries(grupos).map(([fe,arr])=>{
     const d=new Date(fe+'T12:00:00'); const neto=suma(arr,'Ingreso')-suma(arr,'Gasto');
-    return `<div class="day"><span>${d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short'})}</span><span class="num">${neto?fmt(neto):''}</span></div><div class="items">${arr.map(itemHTML).join('')}</div>`}).join(''):'<div class="empty">No hay movimientos con estos filtros.</div>'}`;
+    return `<div class="day"><span>${diaTexto(fe)}</span><span class="num">${neto?fmt(neto):''}</span></div><div class="items">${arr.map(itemHTML).join('')}</div>`}).join(''):'<div class="empty">No hay movimientos con estos filtros.</div>'}`;
   bindMonth(el); bindItems(el);
   const qi=el.querySelector('#q'); qi.oninput=()=>{S.q=qi.value;clearTimeout(qi._t);qi._t=setTimeout(()=>{rMovs();const n=$('#q');n.focus();n.setSelectionRange(n.value.length,n.value.length)},250)};
   el.querySelectorAll('.chip[data-t]').forEach(c=>c.onclick=()=>{S.tipo=c.dataset.t;rMovs()});
