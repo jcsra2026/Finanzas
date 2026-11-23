@@ -576,7 +576,7 @@ function alertasHTML(){
   const filas=[
     ...tj.map(e=>{const c=color(e.met);return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(e.met))}</div><div class="mid"><div class="t1">Pago ${esc(e.met)}${badge(e.dias)}</div><div class="t2">${e.dias<0?'Fecha límite fue el '+fCorta(e.pagoF)+' · sin pago registrado':'Fecha límite '+fCorta(e.pagoF)+' · '+cuando(e.dias)}</div></div><div class="right"><div class="small muted">Deuda actual</div><div class="num gas" style="font-weight:700">${fmt(Math.abs(Math.min(0,e.deuda)))}</div><div class="al-btns"><button class="pill-btn" data-pay="${esc(e.met)}">Pagar</button></div></div></div>`}),
     ...ut.map(u=>{const c=color(u.met),p=u.estado==='pasado';return `<div class="al-row" data-util="${esc(u.met)}" style="cursor:pointer"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(u.met))}</div><div class="mid"><div class="t1" style="white-space:normal">${esc(u.met)}<span class="badge ${p?'red':'amber'}">${p?'Pasaste tu tope':'Cerca del tope'}</span></div><div class="t2">${u.pct.toFixed(0)}% usado · tope ${u.tope}%</div></div><div class="right"><div class="small muted">Deuda</div><div class="num ${p?'gas':''}" style="font-weight:700;${p?'':'color:#F59E0B'}">${fmt(u.deuda)}</div></div></div>`}),
-    ...cortes.map(e=>{const c=color(e.met);return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(e.met))}</div><div class="mid"><div class="t1">Corte ${esc(e.met)}<span class="badge amber">${e.diasCorte===0?'Hoy':cuando(e.diasCorte)}</span></div><div class="t2">${fCorta(e.proxCorte)} · lo que compres después entra al siguiente estado de cuenta</div></div></div>`}),
+    ...cortes.map(e=>{const c=color(e.met);return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(e.met))}</div><div class="mid"><div class="t1">Corte ${esc(e.met)}<span class="badge amber">${e.diasCorte===0?'Hoy':cuando(e.diasCorte)}</span></div><div class="t2">${fCorta(e.proxCorte)}</div></div></div>`}),
     ...rc.map(r=>{const n=dias(hoy,r.prox);const c=r.t==='Transferencia'?'var(--tra)':color(r.c);const cls=r.t==='Ingreso'?'ing':r.t==='Gasto'?'gas':'tra';
       return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}"><svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></div><div class="mid"><div class="t1">${esc(r.nombre)}${badge(n)}</div><div class="t2">${r.frec} · ${fCorta(r.prox)} · ${cuando(n)}</div></div><div class="right"><div class="num ${cls}" style="font-weight:700">${fmt(r.m)}</div><div class="al-btns"><button class="pill-btn ghost" data-skip="${esc(r.id)}">Omitir</button><button class="pill-btn" data-reg="${esc(r.id)}">Registrar</button></div></div></div>`})
   ];
@@ -611,7 +611,7 @@ function presupuestoHTML(byC){
   return `<div class="card"><h2 style="display:flex;justify-content:space-between"><span>Presupuesto del mes</span><button class="tiny-btn" id="goPre" style="padding:0">Editar</button></h2>
   <div class="bud" style="cursor:default"><div class="bud-top"><b>Total</b><span class="num small"><b>${fmt(tg)}</b> de ${fmt(tp)}</span></div>
   <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,Math.max(2,tg/tp*100))}%;background:${est(tg,tp)}"></div>${esActual?`<i class="pace" style="left:${ritmo*100}%"></i>`:''}</div>
-  <div class="bud-sub">${tp-tg>=0?'Disponible '+fmt(tp-tg):'<span class="gas">Excedido por '+fmt(tg-tp)+'</span>'}${esActual?' · la rayita marca el día del mes':''}</div></div>
+  <div class="bud-sub">${tp-tg>=0?'Disponible '+fmt(tp-tg):'<span class="gas">Excedido por '+fmt(tg-tp)+'</span>'}</div></div>
   <div style="border-top:1px solid var(--line);margin-top:6px;padding-top:4px">${rows.map(fila).join('')}</div></div>`;
 }
 
@@ -697,7 +697,7 @@ function rResumen(el){
   </div></div>
   <div class="card"><h2>Ingresos vs gastos por mes</h2><div class="cols">${bm.map(([m,i,g])=>`<div class="col" title="${mesNombre(m)}: +${fmt0(i)} / -${fmt0(g)}"><div class="pair"><i style="height:${i/maxM*100}%;background:var(--ing)"></i><i style="height:${g/maxM*100}%;background:var(--gas)"></i></div><span>${mesCorto(m)}</span></div>`).join('')}</div>
   <div class="legend"><span><i style="background:var(--ing)"></i>Ingresos</span><span><i style="background:var(--gas)"></i>Gastos</span></div></div>
-  <div class="card"><h2>Gastos por categoría</h2><div class="small muted" style="margin:-4px 0 6px">Toca una categoría para ver sus subcategorías</div>${gc.length?barras(conSubs(gc,'Gasto'),gc[0][1],k=>color(k),true):'<div class="muted small">Sin gastos.</div>'}</div>
+  <div class="card"><h2>Gastos por categoría</h2>${gc.length?barras(conSubs(gc,'Gasto'),gc[0][1],k=>color(k),true):'<div class="muted small">Sin gastos.</div>'}</div>
   <div class="card"><h2>Ingresos por categoría</h2>${ic.length?barras(conSubs(ic,'Ingreso'),ic[0][1],'var(--ing)',true):'<div class="muted small">Sin ingresos.</div>'}</div>
   <div class="card"><h2>Gastos por método de pago</h2>${pmL.length?barras(pmL,pmL[0][1],k=>color(k)):'<div class="muted small">Sin gastos.</div>'}</div>`;
   if(S.rep==='mes') bindMonth(el);
@@ -758,10 +758,10 @@ function ritmoCardHTML(m){
     <div class="hero" style="margin-bottom:8px">
       <div class="stat"><small>Llevas al día ${dia}</small><b class="num gas">${fmt(llevo)}</b></div>
       <div class="stat"><small>${mesCorto(pm)} al día ${Math.min(dia,dp)}</small><b class="num">${fmt(prevAl)}</b>${prevAl?`<div class="delta ${dif>0?'gas':'ing'}">${dif>0?'▲':'▼'} ${Math.abs(dif).toFixed(0)}% ${dif>0?'más rápido':'más lento'}</div>`:''}</div>
-      ${proy?`<div class="stat big"><small>Si sigues a este ritmo, cerrarías ${MESES[partes(m+'-01')[1]-1].toLowerCase()} en</small><b class="num" style="font-size:calc(22px*var(--fs))">${fmt(proy)}</b></div>`:''}
+      ${proy?`<div class="stat big"><small>Proyección al cierre</small><b class="num" style="font-size:calc(22px*var(--fs))">${fmt(proy)}</b></div>`:''}
     </div>
     ${svgLineas([{v:prom,color:'#F59E0B',punteada:true,ancho:1.8},{v:prev,color:'var(--tra)',ancho:2},{v:cur,color:'var(--gas)',punto:true,ancho:2.6}],n,{xlab:[[0,'1'],[9,'10'],[19,'20'],[n-1,String(n)]],marca:esAct?dia-1:null})}
-    ${leyenda([['var(--gas)',mesNombre(m)],['var(--tra)',mesNombre(pm)],['#F59E0B','Promedio 3 meses (punteada)']])}
+    ${leyenda([['var(--gas)',mesNombre(m)],['var(--tra)',mesNombre(pm)],['#F59E0B','Promedio 3 meses']])}
   </div>`;
 }
 function rRitmo(el){
@@ -775,7 +775,7 @@ function rRitmo(el){
   const cats=catsDe('Gasto').map(c=>{const a=gastoHastaDia(m,dia,x=>x.c===c);const p=ant.length?ant.reduce((s,mm)=>s+gastoHastaDia(mm,dia,x=>x.c===c),0)/ant.length:0;return {c,a,p,d:a-p,pct:p?(a-p)/p*100:null}})
     .filter(x=>x.a>0||x.p>0).sort((a,b)=>b.d-a.d);
   el.innerHTML=monthBar()+ritmoCardHTML(m)+`
-  <div class="card"><h2>Categorías vs tu promedio</h2><div class="small muted" style="margin:-4px 0 8px">Gasto al día ${dia} comparado con tu promedio de los 3 meses anteriores al mismo día</div>
+  <div class="card"><h2>Categorías vs tu promedio</h2><div class="small muted" style="margin:-4px 0 8px">Al día ${dia} vs tu promedio</div>
     ${cats.length?cats.map(x=>{const up=x.d>0, fuerte=x.pct!=null&&Math.abs(x.pct)>=20;
       return `<div class="al-row bud" data-k="${esc(x.c)}" style="cursor:pointer"><div class="av" style="background:${color(x.c)}22;color:${color(x.c)}">${esc(iniciales(x.c))}</div><div class="mid"><div class="t1">${esc(x.c)}</div><div class="t2">${fmt0(x.a)} vs ${fmt0(x.p)} promedio</div></div><div class="right"><div class="num ${up?'gas':'ing'}" style="font-weight:700">${up?'+':'-'}${fmt0(Math.abs(x.d))}</div>${x.pct==null?'<span class="badge amber">nuevo</span>':`<span class="badge ${up&&fuerte?'red':!up&&fuerte?'':'amber'}" style="${!up&&fuerte?'background:var(--ing-soft);color:var(--ing)':''}">${up?'+':''}${x.pct.toFixed(0)}%</span>`}</div></div>`}).join(''):'<div class="muted small">Sin datos.</div>'}
   </div>`;
@@ -788,7 +788,7 @@ function rTarjetas(el){
   const hoy=D.hoy||hoyLocal(), ET={}; estadoTarjetas().forEach(e=>ET[e.met]=e); const sal=saldos();
   const tarjetas=D.met.filter(m=>m.tipo==='Crédito').map(m=>m.nombre);
   const bloques=tarjetas.map(t=>{const e=ET[t];
-    if(!e) return {t,html:`<div class="card"><h2>${esc(t)}</h2><div class="small muted">Configura su día de corte en Ajustes para ver lo que llevas en el periodo.</div><button class="tiny-btn" data-cfg="${esc(t)}" style="margin-top:6px;padding-left:0">Configurar</button></div>`,tot:-1};
+    if(!e) return {t,html:`<div class="card"><h2>${esc(t)}</h2><div style="display:flex;align-items:center;justify-content:space-between"><span class="small muted">Sin día de corte</span><button class="tiny-btn" data-cfg="${esc(t)}">Configurar</button></div></div>`,tot:-1};
     const g=D.mov.filter(x=>x.o===t&&x.t==='Gasto'&&x.f>e.corteF&&x.f<=hoy);
     const tot=g.reduce((a,x)=>a+x.m,0), byC={}; g.forEach(x=>byC[x.c]=(byC[x.c]||0)+x.m);
     const items=Object.entries(byC).sort((a,b)=>b[1]-a[1]);
@@ -800,7 +800,7 @@ function rTarjetas(el){
       ${utilBar(t)}<div style="height:8px"></div>
       ${items.length?barras(items,items[0][1],k=>color(k)):'<div class="small muted">Sin compras en este periodo.</div>'}</div>`}});
   bloques.sort((a,b)=>b.tot-a.tot);
-  el.innerHTML=`<p class="small muted" style="padding:0 4px;margin:4px 0 10px">Compras hechas con cada tarjeta desde su último corte: es lo que irá en tu próximo estado de cuenta (según lo que registraste).</p>`+(bloques.map(b=>b.html).join('')||'<div class="empty">No tienes tarjetas de crédito.</div>');
+  el.innerHTML=(bloques.map(b=>b.html).join('')||'<div class="empty">No tienes tarjetas de crédito.</div>');
   el.querySelectorAll('[data-cfg]').forEach(b=>b.onclick=()=>formCat('met',D.met.find(m=>m.nombre===b.dataset.cfg)));
 }
 
@@ -817,15 +817,14 @@ function rPatrimonio(el){
     <div class="stat"><small>Tasa de ahorro total</small><b class="num ${tasa>=0?'ing':'gas'}">${tasa.toFixed(1)}%</b></div>
     <div class="stat"><small>Ahorro promedio</small><b class="num ${tot.I-tot.G>=0?'ing':'gas'}">${fmt0((tot.I-tot.G)/meses.length)}/mes</b></div></div></div>
   <div class="card"><h2>Patrimonio al cierre de cada mes</h2>${svgLineas([{v:pat,color:'var(--acc)',punto:true,ancho:2.6}],pat.length,{desdeCero:false,xlab:meses.map((m,i)=>[i,mesCorto(m)])})}</div>
-  <div class="card"><h2>Ahorro por mes</h2><div class="small muted" style="margin:-4px 0 6px">Ahorro = ingresos − gastos. Tasa = qué parte de tus ingresos no gastaste.</div>
+  <div class="card"><h2>Ahorro por mes</h2>
     ${filas.slice().reverse().map(f=>`<div class="al-row"><div class="mid"><div class="t1">${mesNombre(f.m)}</div><div class="t2"><span class="ing">+${fmt0(f.I)}</span> · <span class="gas">-${fmt0(f.G)}</span></div></div><div class="right"><div class="num ${f.A>=0?'ing':'gas'}" style="font-weight:700">${f.A>=0?'+':'-'}${fmt0(Math.abs(f.A))}</div><div class="small muted">${f.t==null?'—':f.t.toFixed(0)+'%'}</div></div></div>`).join('')}
   </div>`;
 }
 
 function formMeta(){
   $('#sheet2Title').textContent='Meta de ingreso pasivo';
-  $('#form2Body').innerHTML=`<p class="small muted" style="margin-top:0">¿Cuánto quieres que tus inversiones te generen cada mes? La app compara tu rendimiento real contra esta meta.</p>
-    <div class="lbl">Meta mensual</div><input class="field" id="mMeta" inputmode="decimal" placeholder="ej. 1500" value="${Number(D.cfg.meta_pasivo)||''}">`;
+  $('#form2Body').innerHTML=`    <div class="lbl">Meta mensual</div><input class="field" id="mMeta" inputmode="decimal" placeholder="ej. 1500" value="${Number(D.cfg.meta_pasivo)||''}">`;
   $('#form2Foot').innerHTML=`<button class="btn pri" id="mSave">Guardar meta</button>`;
   abrirModal('sheet2');
   $('#mSave').onclick=async()=>{const v=parseFloat(String($('#mMeta').value).replace(/[^0-9.]/g,''))||0;
@@ -860,15 +859,15 @@ function rInversiones(el){
       <div class="bud" style="cursor:default"><div class="bud-top"><span>Promedio últimos 3 meses</span><span class="num small"><b>${fmt(prom3)}</b> de ${fmt(meta)}/mes</span></div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,Math.max(2,pct))}%;background:var(--ing)"></div></div>
       <div class="bud-sub">${falta>0?`${pct.toFixed(0)}% de tu meta · te faltan ${fmt(falta)} al mes`:'<span class="ing">¡Meta alcanzada!</span> · '+pct.toFixed(0)+'%'}</div></div>
-      ${falta>0&&extra?`<p class="small muted" style="margin:8px 0 0">Con tu rendimiento promedio actual (≈${(tasaProm*100).toFixed(1)}% anual sobre ${fmt0(capital)} invertidos), necesitarías invertir unos <b>${fmt0(extra)}</b> más para llegar.</p>`:''}</div>`})()
-    :`<div class="card" style="display:flex;align-items:center;gap:10px"><div class="small muted" style="flex:1">Define cuánto quieres que tus inversiones te generen al mes.</div><button class="tiny-btn" id="edMeta">Definir meta</button></div>`;
+      ${falta>0&&extra?`<p class="small muted" style="margin:8px 0 0">Para llegar: invertir ≈ <b>${fmt0(extra)}</b> más</p>`:''}</div>`})()
+    :`<div class="card" style="display:flex;align-items:center;gap:10px"><div class="small muted" style="flex:1">Sin meta de ingreso pasivo</div><button class="tiny-btn" id="edMeta">Definir meta</button></div>`;
   // generado por mes (valores)
   const tablaHTML=`<div class="card"><h2>Generado por mes</h2>${meses.map((m,i)=>({m,i})).reverse().map(({m,i})=>`<div class="al-row"><div class="mid"><div class="t1">${mesNombre(m)}${m===hoy.slice(0,7)?' <span class="small muted">(en curso)</span>':''}</div><div class="t2">${plats.filter(p=>por[i][p]).map(p=>esc(p)+' '+fmt0(por[i][p])).join(' · ')||'—'}</div></div><div class="right"><div class="num ing" style="font-weight:700">${fmt(totMes[i])}</div><div class="small muted">acum. ${fmt0(acum[i])}</div></div></div>`).join('')}
     <div class="al-row"><div class="mid"><b>Total</b></div><div class="right num ing" style="font-weight:800">${fmt(total)}</div></div></div>`;
   el.innerHTML=metaHTML+`<div class="card"><h2>Tus inversiones te han generado</h2><div class="hero">
     <div class="stat big"><b class="num ing">${fmt(total)}</b><div class="delta muted">desde ${mesNombre(meses[0]).toLowerCase()}</div></div>
     <div class="stat"><small>Último mes (${ult?mesCorto(ult):'—'})</small><b class="num ing">${fmt(ultTot)}</b></div>
-    <div class="stat"><small>Al año, a este ritmo</small><b class="num ing">${fmt0(prom3*12)}</b><div class="delta muted">prom. 3 meses × 12</div></div></div></div>
+    <div class="stat"><small>Al año, a este ritmo</small><b class="num ing">${fmt0(prom3*12)}</b></div></div></div>
   <div class="card"><h2>Rendimiento por mes</h2>
     <div class="cols" style="height:170px">${meses.map((m,i)=>`<div class="col" title="${mesNombre(m)}: ${fmt(totMes[i])}"><span class="num" style="font-size:calc(10px*var(--fs))">${totMes[i]?fmtK(totMes[i]):''}</span><div class="stack" style="height:${totMes[i]/maxM*100}%">${plats.map(p=>por[i][p]?`<i style="flex:${por[i][p]};background:${cp(p)}"></i>`:'').join('')}</div><span>${mesCorto(m)}</span></div>`).join('')}</div>
     ${leyenda(plats.map(p=>[cp(p),p]))}</div>
@@ -876,7 +875,6 @@ function rInversiones(el){
   <div class="card"><h2>Acumulado</h2>${svgLineas([{v:acum,color:'var(--ing)',punto:true,ancho:2.6}],acum.length,{xlab:meses.map((m,i)=>[i,mesCorto(m)])})}</div>
   <div class="card"><h2>Por plataforma</h2>
     ${filas.map(f=>`<div class="al-row"><div class="av" style="background:${cp(f.p)}22;color:${cp(f.p)}">${esc(iniciales(f.p))}</div><div class="mid"><div class="t1">${esc(f.p)}</div><div class="t2">Saldo ${fmt0(f.saldoHoy)} · último ${fmt(f.u.m)} (${fCorta(f.u.f)})</div></div><div class="right"><div class="num ing" style="font-weight:700">${fmt(f.t)}</div><div class="small ${f.tasa!=null?'ing':'muted'}">${f.tasa!=null?'≈ '+f.tasa.toFixed(1)+'% anual':'—'}</div></div></div>`).join('')}
-    <p class="small muted" style="margin:10px 0 0">La tasa anual es aproximada: último rendimiento ÷ saldo al inicio de ese mes × 12. Si metiste o sacaste dinero a mitad de mes, puede variar.</p>
   </div>`;
   el.querySelector('#edMeta').onclick=formMeta;
 }
@@ -895,7 +893,7 @@ function rAjustes(){
     <div class="lbl" style="margin-top:4px">Tamaño de letra</div><div class="chips wrap">${Object.entries(LETRAS).map(([k,[l]])=>`<button class="chip ${AP.letra===k?'on':''}" data-ap-letra="${k}">${l}</button>`).join('')}</div>
     <div class="lbl">Densidad de filas</div><div class="chips wrap">${Object.entries(DENS).map(([k,l])=>`<button class="chip ${AP.dens===k?'on':''}" data-ap-dens="${k}">${l}</button>`).join('')}</div>
   </div>
-  <div class="card"><h2>Página de inicio</h2><div class="small muted" style="margin:-4px 0 6px">"Por pagar y próximos" y "Balance del mes" siempre aparecen arriba. Elige qué más mostrar y en qué orden.</div>
+  <div class="card"><h2>Página de inicio</h2>
     ${layoutInicio().map((x,i,arr)=>`<div class="set-item"><label class="sw"><input type="checkbox" data-lay-on="${x.id}" ${x.on?'checked':''}><span></span></label><div class="mid" style="${x.on?'':'opacity:.5'}">${esc((INICIO_TARJETAS.find(t=>t[0]===x.id)||[])[1])}</div>
       <button class="icon-btn" data-lay-up="${i}" ${i===0?'disabled style="opacity:.25"':''} aria-label="Subir"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></button>
       <button class="icon-btn" data-lay-dn="${i}" ${i===arr.length-1?'disabled style="opacity:.25"':''} aria-label="Bajar"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div>`).join('')}
@@ -904,14 +902,14 @@ function rAjustes(){
   <div class="card"><h2>Categorías de ingreso</h2>${bloqueTipo('Ingreso')}<button class="tiny-btn" data-nc="Ingreso" style="margin-top:8px">+ Nueva categoría de ingreso</button></div>
   <div class="card"><h2>Métodos de pago / cuentas</h2>${D.met.map(m=>`<div class="set-item"><div class="av" style="background:${color(m.nombre)}22;color:${color(m.nombre)}">${esc(iniciales(m.nombre))}</div><div class="mid"><div style="font-weight:600">${esc(m.nombre)}</div><div class="small muted">${esc(m.tipo)} · inicial ${fmt(m.inicial)} · ${usoMet[m.nombre]||0} movs${(()=>{const t=D.tar.find(x=>x.met===m.nombre);return (t&&t.corte?` · corte ${t.corte}, pago ${t.pago}`:'')+(t&&t.limite?` · límite ${fmt0(t.limite)}`:'')+(t&&t.alerta?` · tope ${t.alerta}%`:'')})()}</div></div><button class="tiny-btn" data-em="${esc(m.id)}">Editar</button></div>`).join('')}<button class="tiny-btn" id="nm" style="margin-top:8px">+ Nuevo método de pago</button></div>
   <div class="card"><h2>Presupuestos mensuales</h2>${D.pre.length?D.pre.map(x=>`<div class="set-item"><div class="mid">${esc(x.cat)}</div><b class="num">${fmt(x.monto)}</b></div>`).join(''):'<div class="small muted">Sin presupuestos todavía.</div>'}<button class="tiny-btn" id="edPre" style="margin-top:8px">${D.pre.length?'Editar presupuestos':'+ Definir presupuestos'}</button></div>
-  <div class="card"><h2>Movimientos recurrentes</h2>${D.rec.length?[...D.rec].sort((a,b)=>String(a.prox).localeCompare(String(b.prox))).map(r=>`<div class="set-item" style="${r.activo?'':'opacity:.5'}"><div class="mid"><div style="font-weight:600">${esc(r.nombre)}</div><div class="small muted">${fmt(r.m)} · ${r.frec} · próximo ${r.prox?fCorta(r.prox):'—'}${r.activo?'':' · pausado'}</div></div><button class="tiny-btn" data-er="${esc(r.id)}">Editar</button></div>`).join(''):'<div class="small muted">Renta, mesada, suscripciones, nómina… La app te los recuerda y los registras con un toque.</div>'}<button class="tiny-btn" id="nr" style="margin-top:8px">+ Nuevo recurrente</button></div>
-  <div class="card"><h2>Alertas por correo</h2><div class="set-item"><div class="mid small">Correo diario a las 8 a. m. si una tarjeta vence en 3 días o menos, o si hay un recurrente por registrar.</div></div>
+  <div class="card"><h2>Movimientos recurrentes</h2>${D.rec.length?[...D.rec].sort((a,b)=>String(a.prox).localeCompare(String(b.prox))).map(r=>`<div class="set-item" style="${r.activo?'':'opacity:.5'}"><div class="mid"><div style="font-weight:600">${esc(r.nombre)}</div><div class="small muted">${fmt(r.m)} · ${r.frec} · próximo ${r.prox?fCorta(r.prox):'—'}${r.activo?'':' · pausado'}</div></div><button class="tiny-btn" data-er="${esc(r.id)}">Editar</button></div>`).join(''):'<div class="small muted">Sin recurrentes</div>'}<button class="tiny-btn" id="nr" style="margin-top:8px">+ Nuevo recurrente</button></div>
+  <div class="card"><h2>Alertas por correo</h2><div class="set-item"><div class="mid small">Correo diario 8 a. m. con pagos próximos</div></div>
     <div class="set-item"><div class="mid" id="alEstado">Estado: ${S.alertas===undefined?'consultando…':S.alertas?'<b class="ing">activadas</b>':'<b>desactivadas</b>'}</div>
     ${S.alertas?'<button class="tiny-btn" id="alOff">Desactivar</button>':'<button class="tiny-btn" id="alOn">Activar</button>'}<button class="tiny-btn" id="alTest">Probar</button></div></div>
   <div class="card"><h2>Datos</h2>
     <div class="set-item"><div class="mid">Exportar movimientos (CSV para Excel)</div><button class="tiny-btn" id="exp">Descargar</button></div>
     <div class="set-item"><div class="mid">Movimientos pendientes de sincronizar</div><b>${cola().length}</b></div>
-    <div class="set-item"><div class="mid small muted">${D.mov.length} movimientos en total · los datos viven en tu Google Sheet</div></div>
+    <div class="set-item"><div class="mid small muted">${D.mov.length.toLocaleString('es-MX')} movimientos</div></div>
     <div class="set-item"><div class="mid">Conexión con el motor<div class="small muted">${CFG?esc(CFG.url.replace(/^https:\/\/script\.google\.com\/macros\/s\/(.{6}).*$/,'…/s/$1…/exec')):'—'}</div></div><button class="tiny-btn" id="cfgEd">Cambiar</button></div>
   </div>`;
   el.querySelectorAll('[data-ec]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();formCat('cat',D.cat.find(c=>String(c.id)===b.dataset.ec))});
@@ -955,21 +953,20 @@ function formCat(tipo,o){
   if(tipo==='cat') campos+=`<div class="lbl">Tipo</div><select class="field" id="cTipo">${['Gasto','Ingreso'].map(t=>`<option ${o.tipo===t?'selected':''}>${t}</option>`).join('')}</select>`;
   if(tipo==='sub') campos+=`<div class="lbl">Categoría</div><select class="field" id="cCat">${D.cat.filter(c=>c.tipo!=='Transferencia').map(c=>`<option ${o.cat===c.nombre?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select>`;
   if(tipo==='met') campos+=`<div class="lbl">Tipo</div><select class="field" id="cTipo">${['Débito','Crédito','Efectivo'].map(t=>`<option ${o.tipo===t?'selected':''}>${t}</option>`).join('')}</select>
-    <div class="lbl">Monto inicial</div><input class="field" id="cIni" inputmode="decimal" value="${o.inicial??0}"><div class="small muted" style="margin-top:6px">En tarjetas de crédito, la deuda inicial va en negativo (ej. -3471.77).</div>
+    <div class="lbl">Monto inicial</div><input class="field" id="cIni" inputmode="decimal" value="${o.inicial??0}"><div class="small muted" style="margin-top:6px">Tarjetas: la deuda inicial va en negativo</div>
     <div id="tarBox" style="display:${o.tipo==='Crédito'?'block':'none'}">${(()=>{const t=D.tar.find(x=>x.met===o.nombre)||{};return `
       <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><input class="field" id="cCorte" inputmode="numeric" placeholder="ej. 15" value="${t.corte||''}"></div>
       <div style="flex:1"><div class="lbl">Día límite de pago</div><input class="field" id="cPago" inputmode="numeric" placeholder="ej. 5" value="${t.pago||''}"></div></div>
-      <div class="small muted" style="margin-top:6px">Con esto la app te avisa del corte y de la fecha límite de pago.</div>
       <div class="row2" style="gap:10px"><div style="flex:1.4"><div class="lbl">Límite de crédito</div><input class="field" id="cLim" inputmode="decimal" placeholder="ej. 30000" value="${t.limite||''}"></div>
       <div style="flex:1"><div class="lbl">Tope de uso (%)</div><input class="field" id="cAlerta" inputmode="numeric" placeholder="ej. 30" value="${t.alerta||''}"></div></div>
       <div class="small muted" id="cTopeTxt" style="margin-top:6px"></div>`})()}</div>`;
-  if(!nuevo&&usados) campos+=`<p class="small muted" style="margin-top:16px">Se usa en ${usados} movimientos. Si cambias el nombre, también se actualizan esos movimientos.</p>`;
+  if(!nuevo&&usados) campos+=`<p class="small muted" style="margin-top:16px">En ${usados} movimientos (se actualizan si cambias el nombre)</p>`;
   $('#form2Body').innerHTML=campos;
   $('#form2Foot').innerHTML=`${!nuevo?`<button class="btn dan" id="cDel" ${usados?'disabled title="En uso"':''}>Borrar</button>`:''}<button class="btn pri" id="cSave">Guardar</button>`;
   abrirModal('sheet2');
   if(tipo==='met'){ $('#cTipo').onchange=e=>$('#tarBox').style.display=e.target.value==='Crédito'?'block':'none';
     const topeTxt=()=>{const l=parseFloat($('#cLim').value)||0,a=parseFloat($('#cAlerta').value)||0;
-      $('#cTopeTxt').textContent=l&&a?`Te avisaré en Inicio al acercarte (${Math.round(a*0.8)}%) y al pasar el ${a}% = ${fmt0(l*a/100)} de deuda.`:l?'Pon un tope en % para recibir avisos (se suele recomendar 30%).':'Con el límite, la app calcula tu % de utilización.'};
+      $('#cTopeTxt').textContent=l&&a?`${a}% = ${fmt0(l*a/100)} de deuda`:l?'Recomendado: 30%':''};
     $('#cLim').oninput=topeTxt; $('#cAlerta').oninput=topeTxt; topeTxt(); }
   $('#cSave').onclick=async()=>{
     const n=$('#cNombre').value.trim(); if(!n) return toast('Escribe un nombre');
@@ -1002,7 +999,7 @@ $('#sheet2Close').onclick=()=>cerrarModal('sheet2');
 function formPresupuestos(){
   $('#sheet2Title').textContent='Presupuestos mensuales';
   const cats=catsDe('Gasto');
-  $('#form2Body').innerHTML=`<p class="small muted" style="margin-top:0">Monto máximo que quieres gastar al mes en cada categoría. Déjalo vacío para no presupuestar esa categoría. Como guía ves tu promedio de los últimos 3 meses.</p>`+
+  $('#form2Body').innerHTML=`<p class="small muted" style="margin-top:0">Vacío = sin presupuesto</p>`+
     cats.map(c=>{const pr=D.pre.find(x=>x.cat===c);const av=promedioGasto(c);
       return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(av)}/mes</div></div><input class="field" data-pc="${esc(c)}" inputmode="decimal" placeholder="${Math.round(av/100)*100||''}" value="${pr?pr.monto:''}"></div>`}).join('')+
     `<button class="link-btn" id="usarProm">Usar los promedios como presupuesto</button>`;
@@ -1037,8 +1034,7 @@ function formRec(r){
       <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Se repite</div><select class="field" id="rFrec">${opt(FRECS,R.frec)}</select></div>
       <div style="flex:1"><div class="lbl">Próxima fecha</div><input type="date" class="field" id="rProx" value="${R.prox||''}"></div></div>
       <div class="lbl">Nota</div><input class="field" id="rNota" value="${esc(R.n)}">
-      <label class="set-item" style="margin-top:10px"><input type="checkbox" id="rAct" ${R.activo?'checked':''} style="width:20px;height:20px"><span class="mid">Activo (desmárcalo para pausarlo)</span></label>
-      <p class="small muted">No se registra solo: te aparece en Inicio unos días antes para que confirmes el monto con un toque.</p>`;
+      <label class="set-item" style="margin-top:10px"><input type="checkbox" id="rAct" ${R.activo?'checked':''} style="width:20px;height:20px"><span class="mid">Activo</span></label>`;
     const leer=()=>{R.nombre=$('#rNom').value;R.t=$('#rTipo').value;R.m=$('#rImp').value;R.c=$('#rCat')?$('#rCat').value:'Transferencia';R.s=$('#rSub')?$('#rSub').value:'';R.o=$('#rO').value;R.d=$('#rD')?$('#rD').value:'';R.frec=$('#rFrec').value;R.prox=$('#rProx').value;R.n=$('#rNota').value;R.activo=$('#rAct').checked};
     $('#rTipo').onchange=()=>{leer();R.c='';R.s='';dibujar()};
     if($('#rCat')) $('#rCat').onchange=()=>{leer();R.s='';dibujar()};
