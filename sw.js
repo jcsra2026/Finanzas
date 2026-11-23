@@ -1,6 +1,6 @@
-// Mis Finanzas — permite abrir la app sin señal y la instala como app.
-// Cambia VERSION cuando actualices index.html para forzar la actualización.
-const VERSION = 'mf-v20';
+// Mis Finanzas — abre al instante con la copia guardada y busca actualizaciones en segundo plano.
+// Cambia VERSION cuando actualices index.html.
+const VERSION = 'mf-v21';
 const ARCHIVOS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -12,9 +12,10 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return; // los datos van directo a Google
-  // primero la red (para recibir actualizaciones); si no hay señal, la copia guardada
-  e.respondWith(
-    fetch(req).then(r => { const copia = r.clone(); caches.open(VERSION).then(c => c.put(req, copia)); return r; })
-      .catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
-  );
+  e.respondWith(caches.open(VERSION).then(async cache => {
+    const guardado = await cache.match(req, { ignoreSearch: true }) || (req.mode === 'navigate' ? await cache.match('./index.html') : null);
+    const deRed = fetch(req).then(r => { if (r && r.ok) cache.put(req, r.clone()); return r; }).catch(() => null);
+    if (guardado) { e.waitUntil(deRed); return guardado; }   // al instante; la versión nueva queda lista para la próxima vez
+    return (await deRed) || new Response('Sin conexión', { status: 503 });
+  }));
 });
