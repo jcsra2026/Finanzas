@@ -141,6 +141,12 @@ textarea.field{height:70px;padding:10px 12px;resize:none}
 @keyframes sl{from{background-position:-50% 0}to{background-position:150% 0}}
 .loading{display:grid;place-items:center;height:60vh;color:var(--muted)}
 .set-group{margin-bottom:6px}
+.sw{position:relative;width:44px;height:26px;flex:none;display:inline-block}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw span{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:.2s}
+.sw span::after{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw input:checked+span{background:var(--acc)}
+.sw input:checked+span::after{transform:translateX(18px)}
 svg.chart{width:100%;height:auto;stroke:none;fill:none;display:block;margin:4px 0}
 .col .stack{display:flex;flex-direction:column-reverse;width:60%;max-width:26px;border-radius:5px 5px 2px 2px;overflow:hidden;min-height:2px}
 .col .stack i{display:block;min-height:1px}
@@ -443,37 +449,55 @@ function barras(items,max,col,click){
   return items.map(([k,v,extra])=>`<div class="bar-row ${click?'click':''}" ${click?`data-k="${esc(k)}"`:''}><span class="name">${esc(k)}</span><div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%;background:${typeof col==='function'?col(k):col}"></div></div><span class="num small">${fmt0(v)}</span></div>${extra||''}`).join('');
 }
 
+/* Tarjetas de Inicio que se pueden mostrar/ocultar y ordenar (Ajustes → Página de inicio) */
+const INICIO_TARJETAS=[['pre','Presupuesto del mes'],['pat','Disponible, deuda y patrimonio'],['gcat','Gastos por categoría'],['ult','Últimos movimientos'],['ritmo','Ritmo de gasto'],['icat','Ingresos por categoría']];
+const INICIO_DEFECTO=['pre','pat','gcat','ult'];
+function layoutInicio(){
+  let l=[]; try{ l=JSON.parse(D.cfg.inicio_layout||'[]') }catch(e){ l=[] }
+  if(!Array.isArray(l)||!l.length) l=INICIO_TARJETAS.map(([id])=>({id,on:INICIO_DEFECTO.includes(id)}));
+  const ids=INICIO_TARJETAS.map(x=>x[0]); l=l.filter(x=>ids.includes(x.id));
+  ids.forEach(id=>{ if(!l.some(x=>x.id===id)) l.push({id,on:false}) });
+  return l;
+}
+function guardarLayout(l){
+  D.cfg.inicio_layout=JSON.stringify(l); store.set(CACHE_KEY,D);
+  clearTimeout(guardarLayout._t);
+  guardarLayout._t=setTimeout(async()=>{ try{ await api('guardarConfig','inicio_layout',D.cfg.inicio_layout) }
+    catch(e){ toast('No se guardó en el Sheet: '+(e.message||e)+(/no permitida/i.test(e.message)?' — actualiza el motor (Code.gs)':'')) } },900);
+}
 function rInicio(){
   const el=$('#v-inicio');
   const mm=D.mov.filter(x=>enMes(x,S.mes)), ing=suma(mm,'Ingreso'), gas=suma(mm,'Gasto');
   const hoyI=D.hoy||hoyLocal(), esActI=S.mes===hoyI.slice(0,7), diaI=partes(hoyI)[2];
   const gasP=esActI?gastoHastaDia(mesAdd(S.mes,-1),diaI):suma(D.mov.filter(x=>enMes(x,mesAdd(S.mes,-1))),'Gasto');
-  const sal=saldos(); let disp=0,deuda=0;
-  Object.entries(sal).forEach(([k,v])=>{ if(tipoMetodo(k)==='Crédito') deuda+=v; else disp+=v });
-  const byC={}; mm.filter(x=>x.t==='Gasto').forEach(x=>byC[x.c]=(byC[x.c]||0)+x.m);
-  const top=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const ult=ordenarRecientes(mm).slice(0,6);
   const dp=gasP?((gas-gasP)/gasP*100):0;
+  const byC={}; mm.filter(x=>x.t==='Gasto').forEach(x=>byC[x.c]=(byC[x.c]||0)+x.m);
+  const T={
+    pre:()=>presupuestoHTML(byC),
+    pat:()=>{const sal=saldos();let disp=0,deuda=0;Object.entries(sal).forEach(([k,v])=>{if(tipoMetodo(k)==='Crédito')deuda+=v;else disp+=v});
+      return `<div class="card" id="goCuentas" style="cursor:pointer"><div class="hero">
+      <div class="stat"><small>Disponible en cuentas</small><b class="num">${fmt(disp)}</b></div>
+      <div class="stat"><small>Deuda en tarjetas</small><b class="num gas">${fmt(Math.abs(deuda))}</b></div>
+      <div class="stat big"><small>Patrimonio neto</small><b class="num" style="font-size:22px">${fmt(disp+deuda)}</b></div></div></div>`},
+    gcat:()=>{const top=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      return `<div class="card" data-tipo="Gasto"><h2>Gastos por categoría</h2>${top.length?barras(top,top[0][1],k=>color(k),true):'<div class="muted small">Sin gastos este mes.</div>'}</div>`},
+    icat:()=>{const o={};mm.filter(x=>x.t==='Ingreso').forEach(x=>o[x.c]=(o[x.c]||0)+x.m);const top=Object.entries(o).sort((a,b)=>b[1]-a[1]);
+      return `<div class="card" data-tipo="Ingreso"><h2>Ingresos por categoría</h2>${top.length?barras(top,top[0][1],'var(--ing)',true):'<div class="muted small">Sin ingresos este mes.</div>'}</div>`},
+    ult:()=>{const ult=ordenarRecientes(mm).slice(0,6);
+      return `<div class="card" style="padding:0"><h2 style="padding:16px 16px 0">Últimos movimientos</h2><div class="items" style="box-shadow:none">${ult.map(itemHTML).join('')||'<div class="empty">Aún no hay movimientos este mes.<br>Toca + para agregar uno.</div>'}</div>
+      ${mm.length>6?'<button class="tiny-btn" id="verTodos" style="margin:4px 8px 10px">Ver todos ('+mm.length+')</button>':''}</div>`},
+    ritmo:()=>ritmoCardHTML(S.mes)
+  };
   el.innerHTML=alertasHTML()+monthBar()+`
   <div class="card"><div class="hero">
     <div class="stat big"><small>Balance del mes</small><b class="num ${ing-gas>=0?'ing':'gas'}">${fmt(ing-gas)}</b></div>
     <div class="stat"><small>Ingresos</small><b class="num ing">${fmt(ing)}</b></div>
     <div class="stat"><small>Gastos</small><b class="num gas">${fmt(gas)}</b>${gasP?`<div class="delta muted">${dp>=0?'▲':'▼'} ${Math.abs(dp).toFixed(0)}% vs ${mesCorto(mesAdd(S.mes,-1))}${esActI?' al día '+diaI:''}</div>`:''}</div>
-  </div></div>
-  ${presupuestoHTML(byC)}
-  <div class="card" id="goCuentas" style="cursor:pointer"><div class="hero">
-    <div class="stat"><small>Disponible en cuentas</small><b class="num">${fmt(disp)}</b></div>
-    <div class="stat"><small>Deuda en tarjetas</small><b class="num gas">${fmt(Math.abs(deuda))}</b></div>
-    <div class="stat big"><small>Patrimonio neto</small><b class="num" style="font-size:22px">${fmt(disp+deuda)}</b></div>
-  </div></div>
-  <div class="card"><h2>Gastos por categoría</h2>${top.length?barras(top,top[0][1],k=>color(k),true):'<div class="muted small">Sin gastos este mes.</div>'}</div>
-  <div class="card" style="padding:0"><h2 style="padding:16px 16px 0">Últimos movimientos</h2><div class="items" style="box-shadow:none">${ult.map(itemHTML).join('')||'<div class="empty">Aún no hay movimientos este mes.<br>Toca + para agregar uno.</div>'}</div>
-  ${mm.length>6?'<button class="tiny-btn" id="verTodos" style="margin:4px 8px 10px">Ver todos ('+mm.length+')</button>':''}</div>`;
-  bindMonth(el); bindItems(el);
-  el.querySelector('#goCuentas').onclick=()=>ir('cuentas');
-  el.querySelectorAll('.bar-row[data-k]').forEach(r=>r.onclick=()=>{S.cat=r.dataset.k;S.sub='';S.acc='';S.tipo='Gasto';ir('movs')});
+  </div></div>`+layoutInicio().filter(x=>x.on).map(x=>T[x.id]()).join('');
+  bindMonth(el); bindItems(el); bindAlertas(el);
+  const gc=el.querySelector('#goCuentas'); if(gc) gc.onclick=()=>ir('cuentas');
+  el.querySelectorAll('[data-tipo] .bar-row[data-k]').forEach(r=>r.onclick=()=>{S.cat=r.dataset.k;S.sub='';S.acc='';S.tipo=r.closest('[data-tipo]').dataset.tipo;ir('movs')});
   const vt=el.querySelector('#verTodos'); if(vt) vt.onclick=()=>{S.cat='';S.acc='';S.tipo='';ir('movs')};
-  bindAlertas(el);
   el.querySelectorAll('.bud[data-k]').forEach(r=>r.onclick=()=>{S.cat=r.dataset.k;S.sub='';S.acc='';S.tipo='Gasto';ir('movs')});
   const gp=el.querySelector('#goPre'); if(gp) gp.onclick=formPresupuestos;
 }
@@ -657,6 +681,24 @@ function gastoHastaDia(m,dia,filtro){const dd=Math.min(dia,diasDelMes(m));const 
 function mesesConDatos(){const fs=D.mov.map(x=>x.f.slice(0,7)).sort();const ini=fs[0]||(D.hoy||hoyLocal()).slice(0,7),fin=(D.hoy||hoyLocal()).slice(0,7);const r=[];for(let m=ini;m<=fin&&r.length<240;m=mesAdd(m,1))r.push(m);return r}
 
 /* ---- Ritmo del mes + categorías fuera de lo normal ---- */
+function ritmoCardHTML(m){
+  const hoy=D.hoy||hoyLocal(), esAct=m===hoy.slice(0,7), dm=diasDelMes(m), dia=esAct?partes(hoy)[2]:dm;
+  const pm=mesAdd(m,-1), dp=diasDelMes(pm), n=Math.max(dm,dp);
+  const cur=gastoAcum(m,dm).map((v,i)=>i<dia?v:null), prev=gastoAcum(pm,dp);
+  const prom=[];const ant=[1,2,3].map(k=>mesAdd(m,-k)).filter(x=>D.mov.some(y=>enMes(y,x)));
+  for(let i=0;i<n;i++){prom.push(ant.length?ant.reduce((a,mm)=>a+gastoHastaDia(mm,i+1),0)/ant.length:null)}
+  const llevo=cur[dia-1]||0, prevAl=gastoHastaDia(pm,dia), dif=prevAl?(llevo-prevAl)/prevAl*100:0;
+  const proy=esAct&&dia>=3?llevo/dia*dm:null;
+  return `<div class="card"><h2>Ritmo de gasto</h2>
+    <div class="hero" style="margin-bottom:8px">
+      <div class="stat"><small>Llevas al día ${dia}</small><b class="num gas">${fmt(llevo)}</b></div>
+      <div class="stat"><small>${mesCorto(pm)} al día ${Math.min(dia,dp)}</small><b class="num">${fmt(prevAl)}</b>${prevAl?`<div class="delta ${dif>0?'gas':'ing'}">${dif>0?'▲':'▼'} ${Math.abs(dif).toFixed(0)}% ${dif>0?'más rápido':'más lento'}</div>`:''}</div>
+      ${proy?`<div class="stat big"><small>Si sigues a este ritmo, cerrarías ${MESES[partes(m+'-01')[1]-1].toLowerCase()} en</small><b class="num" style="font-size:22px">${fmt(proy)}</b></div>`:''}
+    </div>
+    ${svgLineas([{v:prom,color:'#F59E0B',punteada:true,ancho:1.8},{v:prev,color:'var(--tra)',ancho:2},{v:cur,color:'var(--gas)',punto:true,ancho:2.6}],n,{xlab:[[0,'1'],[9,'10'],[19,'20'],[n-1,String(n)]],marca:esAct?dia-1:null})}
+    ${leyenda([['var(--gas)',mesNombre(m)],['var(--tra)',mesNombre(pm)],['#F59E0B','Promedio 3 meses (punteada)']])}
+  </div>`;
+}
 function rRitmo(el){
   const hoy=D.hoy||hoyLocal(), m=S.mes, esAct=m===hoy.slice(0,7), dm=diasDelMes(m), dia=esAct?partes(hoy)[2]:dm;
   const pm=mesAdd(m,-1), dp=diasDelMes(pm), n=Math.max(dm,dp);
@@ -667,16 +709,7 @@ function rRitmo(el){
   const proy=esAct&&dia>=3?llevo/dia*dm:null;
   const cats=catsDe('Gasto').map(c=>{const a=gastoHastaDia(m,dia,x=>x.c===c);const p=ant.length?ant.reduce((s,mm)=>s+gastoHastaDia(mm,dia,x=>x.c===c),0)/ant.length:0;return {c,a,p,d:a-p,pct:p?(a-p)/p*100:null}})
     .filter(x=>x.a>0||x.p>0).sort((a,b)=>b.d-a.d);
-  el.innerHTML=monthBar()+`
-  <div class="card"><h2>Ritmo de gasto</h2>
-    <div class="hero" style="margin-bottom:8px">
-      <div class="stat"><small>Llevas al día ${dia}</small><b class="num gas">${fmt(llevo)}</b></div>
-      <div class="stat"><small>${mesCorto(pm)} al día ${Math.min(dia,dp)}</small><b class="num">${fmt(prevAl)}</b>${prevAl?`<div class="delta ${dif>0?'gas':'ing'}">${dif>0?'▲':'▼'} ${Math.abs(dif).toFixed(0)}% ${dif>0?'más rápido':'más lento'}</div>`:''}</div>
-      ${proy?`<div class="stat big"><small>Si sigues a este ritmo, cerrarías ${MESES[partes(m+'-01')[1]-1].toLowerCase()} en</small><b class="num" style="font-size:22px">${fmt(proy)}</b></div>`:''}
-    </div>
-    ${svgLineas([{v:prom,color:'#F59E0B',punteada:true,ancho:1.8},{v:prev,color:'var(--tra)',ancho:2},{v:cur,color:'var(--gas)',punto:true,ancho:2.6}],n,{xlab:[[0,'1'],[9,'10'],[19,'20'],[n-1,String(n)]],marca:esAct?dia-1:null})}
-    ${leyenda([['var(--gas)',mesNombre(m)],['var(--tra)',mesNombre(pm)],['#F59E0B','Promedio 3 meses (punteada)']])}
-  </div>
+  el.innerHTML=monthBar()+ritmoCardHTML(m)+`
   <div class="card"><h2>Categorías vs tu promedio</h2><div class="small muted" style="margin:-4px 0 8px">Gasto al día ${dia} comparado con tu promedio de los 3 meses anteriores al mismo día</div>
     ${cats.length?cats.map(x=>{const up=x.d>0, fuerte=x.pct!=null&&Math.abs(x.pct)>=20;
       return `<div class="al-row bud" data-k="${esc(x.c)}" style="cursor:pointer"><div class="av" style="background:${color(x.c)}22;color:${color(x.c)}">${esc(iniciales(x.c))}</div><div class="mid"><div class="t1">${esc(x.c)}</div><div class="t2">${fmt0(x.a)} vs ${fmt0(x.p)} promedio</div></div><div class="right"><div class="num ${up?'gas':'ing'}" style="font-weight:700">${up?'+':'-'}${fmt0(Math.abs(x.d))}</div>${x.pct==null?'<span class="badge amber">nuevo</span>':`<span class="badge ${up&&fuerte?'red':!up&&fuerte?'':'amber'}" style="${!up&&fuerte?'background:var(--ing-soft);color:var(--ing)':''}">${up?'+':''}${x.pct.toFixed(0)}%</span>`}</div></div>`}).join(''):'<div class="muted small">Sin datos.</div>'}
@@ -792,6 +825,11 @@ function rAjustes(){
     <div class="subs">${subs.map(s=>`<div class="set-item"><div class="mid">${esc(s.nombre)} <span class="small muted">· ${usoSub[c.nombre+'|'+s.nombre]||0}</span></div><button class="tiny-btn" data-es="${esc(s.id)}">Editar</button></div>`).join('')}
     <button class="tiny-btn" data-ns="${esc(c.nombre)}">+ Nueva subcategoría</button></div></details>`}).join('');
   el.innerHTML=`
+  <div class="card"><h2>Página de inicio</h2><div class="small muted" style="margin:-4px 0 6px">"Por pagar y próximos" y "Balance del mes" siempre aparecen arriba. Elige qué más mostrar y en qué orden.</div>
+    ${layoutInicio().map((x,i,arr)=>`<div class="set-item"><label class="sw"><input type="checkbox" data-lay-on="${x.id}" ${x.on?'checked':''}><span></span></label><div class="mid" style="${x.on?'':'opacity:.5'}">${esc((INICIO_TARJETAS.find(t=>t[0]===x.id)||[])[1])}</div>
+      <button class="icon-btn" data-lay-up="${i}" ${i===0?'disabled style="opacity:.25"':''} aria-label="Subir"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button class="icon-btn" data-lay-dn="${i}" ${i===arr.length-1?'disabled style="opacity:.25"':''} aria-label="Bajar"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div>`).join('')}
+  </div>
   <div class="card"><h2>Categorías de gasto</h2>${bloqueTipo('Gasto')}<button class="tiny-btn" data-nc="Gasto" style="margin-top:8px">+ Nueva categoría de gasto</button></div>
   <div class="card"><h2>Categorías de ingreso</h2>${bloqueTipo('Ingreso')}<button class="tiny-btn" data-nc="Ingreso" style="margin-top:8px">+ Nueva categoría de ingreso</button></div>
   <div class="card"><h2>Métodos de pago / cuentas</h2>${D.met.map(m=>`<div class="set-item"><div class="av" style="background:${color(m.nombre)}22;color:${color(m.nombre)}">${esc(iniciales(m.nombre))}</div><div class="mid"><div style="font-weight:600">${esc(m.nombre)}</div><div class="small muted">${esc(m.tipo)} · inicial ${fmt(m.inicial)} · ${usoMet[m.nombre]||0} movs${(()=>{const t=D.tar.find(x=>x.met===m.nombre);return t&&t.corte?` · corte ${t.corte}, pago ${t.pago}`:''})()}</div></div><button class="tiny-btn" data-em="${esc(m.id)}">Editar</button></div>`).join('')}<button class="tiny-btn" id="nm" style="margin-top:8px">+ Nuevo método de pago</button></div>
@@ -815,6 +853,11 @@ function rAjustes(){
   el.querySelector('#exp').onclick=exportar;
   el.querySelector('#cfgEd').onclick=()=>mostrarSetup();
   el.querySelector('#edPre').onclick=formPresupuestos;
+  const lay=layoutInicio(), y0=()=>scrollY;
+  const aplicar=l=>{const y=y0();guardarLayout(l);rAjustes();window.scrollTo(0,y)};
+  el.querySelectorAll('[data-lay-on]').forEach(c=>c.onchange=()=>{lay.find(x=>x.id===c.dataset.layOn).on=c.checked;aplicar(lay)});
+  el.querySelectorAll('[data-lay-up]').forEach(b=>b.onclick=()=>{const i=+b.dataset.layUp;if(i>0){[lay[i-1],lay[i]]=[lay[i],lay[i-1]];aplicar(lay)}});
+  el.querySelectorAll('[data-lay-dn]').forEach(b=>b.onclick=()=>{const i=+b.dataset.layDn;if(i<lay.length-1){[lay[i+1],lay[i]]=[lay[i],lay[i+1]];aplicar(lay)}});
   el.querySelector('#nr').onclick=()=>formRec();
   el.querySelectorAll('[data-er]').forEach(b=>b.onclick=()=>formRec(D.rec.find(r=>r.id===b.dataset.er)));
   if(S.alertas===undefined) api('estadoAlertas').then(v=>{S.alertas=!!v;if(S.view==='ajustes')rAjustes()}).catch(()=>{S.alertas=false});
