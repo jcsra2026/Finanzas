@@ -1002,16 +1002,21 @@ $('#sheet2Close').onclick=()=>cerrarModal('sheet2');
 
 function formPresupuestos(){
   $('#sheet2Title').textContent='Presupuestos mensuales';
-  const cats=catsDe('Gasto');
-  $('#form2Body').innerHTML=`<p class="small muted" style="margin-top:0">Vacío = sin presupuesto</p>`+
-    cats.map(c=>{const pr=D.pre.find(x=>x.cat===c);const av=promedioGasto(c);
-      return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(av)}/mes</div></div><input class="field" data-pc="${esc(c)}" inputmode="decimal" placeholder="${Math.round(av/100)*100||''}" value="${pr?pr.monto:''}"></div>`}).join('')+
-    `<button class="link-btn" id="usarProm">Usar los promedios como presupuesto</button>`;
-  $('#form2Foot').innerHTML=`<button class="btn pri" id="pSave">Guardar presupuestos</button>`;
+  const cats=catsDe('Gasto'), prom={}; cats.forEach(c=>prom[c]=promedioGasto(c));
+  const redondo=v=>Math.round(v/100)*100;
+  const promTot=cats.reduce((a,c)=>a+prom[c],0);
+  $('#form2Body').innerHTML=`<div class="row2" style="justify-content:space-between;margin-bottom:6px"><span class="small muted">Tu gasto promedio: <b>${fmt0(promTot)}</b>/mes</span><button class="btn sec" id="usarProm" style="flex:none;height:38px;padding:0 14px;font-size:calc(14px*var(--fs))">Usar promedios</button></div>
+    <p class="small muted" style="margin:0 0 4px">Vacío = sin presupuesto</p>`+
+    cats.map(c=>{const pr=D.pre.find(x=>x.cat===c);
+      return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(prom[c])}/mes</div></div><input class="field" data-pc="${esc(c)}" inputmode="decimal" placeholder="—" value="${pr?pr.monto:''}"></div>`}).join('');
+  $('#form2Foot').innerHTML=`<div style="flex:1;display:flex;flex-direction:column;justify-content:center"><span class="small muted">Total</span><b class="num" id="pTot" style="font-size:calc(18px*var(--fs))"></b></div><button class="btn pri" id="pSave" style="flex:none">Guardar</button>`;
   abrirModal('sheet2');
-  $('#usarProm').onclick=()=>document.querySelectorAll('[data-pc]').forEach(i=>{if(!i.value)i.value=i.placeholder});
+  const leerMonto=i=>parseFloat(String(i.value).replace(/[^0-9.]/g,''))||0;
+  const total=()=>{$('#pTot').textContent=fmt([...document.querySelectorAll('[data-pc]')].reduce((a,i)=>a+leerMonto(i),0))+' / mes'};
+  document.querySelectorAll('[data-pc]').forEach(i=>i.oninput=total); total();
+  $('#usarProm').onclick=()=>{document.querySelectorAll('[data-pc]').forEach(i=>{const v=redondo(prom[i.dataset.pc]);i.value=v||''});total();toast('Promedios aplicados · revisa y guarda')};
   $('#pSave').onclick=async()=>{
-    const lista=[...document.querySelectorAll('[data-pc]')].map(i=>({cat:i.dataset.pc,monto:parseFloat(String(i.value).replace(/[^0-9.]/g,''))||0})).filter(x=>x.monto>0);
+    const lista=[...document.querySelectorAll('[data-pc]')].map(i=>({cat:i.dataset.pc,monto:leerMonto(i)})).filter(x=>x.monto>0);
     $('#pSave').disabled=true; syncing(true);
     try{await api('guardarPresupuestos',lista);D.pre=lista.map((x,i)=>({id:i+1,...x}));store.set(CACHE_KEY,D);cerrarModal('sheet2');render();toast('Presupuestos guardados')}
     catch(e){toast('Error: '+(e.message||e));$('#pSave').disabled=false}

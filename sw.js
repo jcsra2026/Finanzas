@@ -1,6 +1,6 @@
 // Mis Finanzas — permite abrir la app sin señal y la instala como app.
 // Cambia VERSION cuando actualices index.html para forzar la actualización.
-const VERSION = 'mf-v19';
+const VERSION = 'mf-v20';
 const ARCHIVOS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
