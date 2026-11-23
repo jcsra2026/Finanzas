@@ -247,7 +247,7 @@ details.cat-block .subs{padding:0 0 10px 48px}
 /* ============ estado ============ */
 let D = {mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:''};
 function normalizar(){['mov','cat','sub','met','pre','rec','tar'].forEach(k=>{if(!Array.isArray(D[k]))D[k]=[]});if(!D.cfg||typeof D.cfg!=='object')D.cfg={}}
-const S = {view:'inicio', mes:'', q:'', tipo:'', acc:'', cat:'', sub:'', rep:'mes', repOpen:{}, form:null};
+const S = {view:'inicio', mes:'', q:'', tipo:'', acc:'', cat:'', sub:'', rep:'mes', repOpen:{}, form:null, scroll:{}, despues:null};
 const CACHE_KEY='misfinanzas_cache_v1', QUEUE_KEY='misfinanzas_cola_v1';
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const PALETA=['#6D28D9','#DB2777','#EA580C','#CA8A04','#16A34A','#0891B2','#2563EB','#9333EA','#DC2626','#0D9488','#65A30D','#C026D3'];
@@ -370,35 +370,49 @@ function uso(filtro,clave,dias=120){ // frecuencia de uso reciente para ordenar 
 }
 function masUsado(filtro,clave){ // lo más usado, dando prioridad a lo reciente (60 días; si no hay, 1 año)
   for(const d of [60,365]){const u=uso(filtro,clave,d);const k=Object.keys(u).sort((a,b)=>u[b]-u[a])[0];if(k)return k}return ''}
+function ordenarRecientes(arr){ // por fecha y, dentro del mismo día, el último capturado primero
+  const pos=new Map(D.mov.map((x,i)=>[x,i])); return [...arr].sort((a,b)=>b.f.localeCompare(a.f)||(pos.get(b)-pos.get(a)))}
 function ordenarPorUso(lista,c){return [...lista].sort((a,b)=>(c[b]||0)-(c[a]||0)||a.localeCompare(b,'es'))}
 function subcatsDe(cat){return [...new Set(D.sub.filter(s=>s.cat===cat).map(s=>s.nombre))]}
 function catsDe(tipo){return [...new Set(D.cat.filter(c=>c.tipo===tipo).map(c=>c.nombre))]}
 
 /* ============ navegación ============ */
 const TITULOS={inicio:'Inicio',movs:'Movimientos',cuentas:'Cuentas',reportes:'Reportes',ajustes:'Ajustes'};
+/* Navegación:
+   - Inicio es la raíz (nivel 0). Movimientos/Cuentas/Reportes son nivel 1: "atrás" siempre regresa a Inicio.
+   - Ajustes se abre encima de la página actual: "atrás" regresa a la página desde donde se abrió.
+   - Formularios (ventanas) se abren encima de todo: "atrás" o la ✕ los cierran y dejan la página como estaba. */
+function nivel(){return (history.state&&history.state.d)||0}
 function ir(v,desdeAtras){
-  if(!desdeAtras&&v!==S.view&&S.view!=='setup') history.pushState({v},'');
+  if(!desdeAtras&&v!==S.view&&S.view!=='setup'){
+    if(v==='inicio'){ if(nivel()>0){ S.scroll[S.view]=scrollY; history.go(-nivel()); return } }
+    else if(v==='ajustes'||S.view==='inicio') history.pushState({v,d:nivel()+1},'');
+    else history.replaceState({v,d:nivel()},'');
+  }
   const mismo=v===S.view;
+  if(!mismo) S.scroll[S.view]=scrollY;
   S.view=v; document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
   document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  $('#title').textContent=TITULOS[v]; render(); if(!mismo) window.scrollTo(0,0);
+  $('#title').textContent=TITULOS[v]; render();
+  if(!mismo) window.scrollTo(0,desdeAtras?(S.scroll[v]||0):0);
 }
-/* ventanas (formularios) y botón/gesto "atrás" de Android */
-function abrirModal(id){ const el=$('#'+id); if(el.classList.contains('on')) return; el.classList.add('on'); history.pushState({modal:id},'') }
-function cerrarModal(id){ const el=$('#'+id); if(!el.classList.contains('on')) return;
-  if(history.state&&history.state.modal===id) history.back(); else ocultar(id) }
+function abrirModal(id){ const el=$('#'+id); if(el.classList.contains('on')) return; el.classList.add('on'); history.pushState({modal:id,v:S.view,d:nivel()+1},'') }
+function cerrarModal(id,despues){ const el=$('#'+id);
+  if(!el.classList.contains('on')){ if(despues) despues(); return }
+  if(history.state&&history.state.modal===id){ S.despues=despues||null; history.back() } else { ocultar(id); if(despues) despues() } }
 function ocultar(id){ $('#'+id).classList.remove('on'); if(id==='sheet') S.form=null }
 window.addEventListener('popstate',e=>{
   const st=e.state||{};
   if(st.modal!=='sheet2') ocultar('sheet2');
   if(st.modal!=='sheet'&&st.modal!=='sheet2') ocultar('sheet');
   if(!st.modal&&S.view!=='setup'){ const v=st.v||'inicio'; if(v!==S.view) ir(v,true) }
+  if(S.despues){ const f=S.despues; S.despues=null; f() }
 });
-history.replaceState({v:'inicio'},'');
+history.replaceState({v:'inicio',d:0},'');
 document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.onclick=()=>{ if(b.dataset.v==='movs'){S.acc='';S.cat='';S.sub=''} ir(b.dataset.v) });
 $('#btnAjustes').onclick=()=>ir('ajustes');
 $('#btnRefresh').onclick=async()=>{await vaciarCola();await cargar()};
-$('#fab').onclick=()=>abrirForm();
+$('#fab').onclick=()=>{abrirForm();S.form._fab=true};
 
 function monthBar(){
   return `<div class="month"><button class="icon-btn" data-mes="-1"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><b>${mesNombre(S.mes)}</b><button class="icon-btn" data-mes="1"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>`;
@@ -438,7 +452,7 @@ function rInicio(){
   Object.entries(sal).forEach(([k,v])=>{ if(tipoMetodo(k)==='Crédito') deuda+=v; else disp+=v });
   const byC={}; mm.filter(x=>x.t==='Gasto').forEach(x=>byC[x.c]=(byC[x.c]||0)+x.m);
   const top=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const ult=[...mm].sort((a,b)=>b.f.localeCompare(a.f)).slice(0,6);
+  const ult=ordenarRecientes(mm).slice(0,6);
   const dp=gasP?((gas-gasP)/gasP*100):0;
   el.innerHTML=alertasHTML()+monthBar()+`
   <div class="card"><div class="hero">
@@ -518,7 +532,7 @@ function rMovs(){
   const q=S.q.trim().toLowerCase();
   let f=D.mov.filter(x=>enMes(x,S.mes)&&(!S.tipo||x.t===S.tipo)&&(!S.acc||x.o===S.acc||x.d===S.acc)&&(!S.cat||x.c===S.cat)&&(!S.sub||x.s===S.sub));
   if(q) f=f.filter(x=>(x.c+' '+x.s+' '+x.n+' '+x.o+' '+x.d+' '+x.m).toLowerCase().includes(q));
-  f.sort((a,b)=>b.f.localeCompare(a.f)||(b.id>a.id?1:-1));
+  f=ordenarRecientes(f);
   const grupos={}; f.forEach(x=>(grupos[x.f]=grupos[x.f]||[]).push(x));
   const ing=suma(f,'Ingreso'),gas=suma(f,'Gasto');
   const tags=[S.acc&&['acc','Cuenta: '+S.acc],S.cat&&['cat','Categoría: '+S.cat],S.sub&&['sub',S.sub]].filter(Boolean);
@@ -1002,8 +1016,9 @@ async function guardar(otro){
   const i=D.mov.findIndex(x=>x.id===m.id); if(i>=0) D.mov[i]=m; else D.mov.push(m);
   const rec=F._rec?D.rec.find(x=>x.id===F._rec):null, sig=rec?avanzar(rec.prox,rec.frec,rec.dia):'';
   if(rec) rec.prox=sig;
-  if(otro){ S.form={id:'',f:F.f,t:F.t,c:'',s:'',o:F.o,d:'',m:'',n:''}; dibujarForm(true) } else cerrarForm();
-  S.mes=m.f.slice(0,7); render(); toast(rec?'Registrado · siguiente '+fCorta(sig):nuevo?'Guardado':'Actualizado');
+  if(otro){ S.form={id:'',f:F.f,t:F.t,c:'',s:'',o:F.o,d:'',m:'',n:'',_fab:F._fab}; dibujarForm(true); S.mes=m.f.slice(0,7); render() }
+  else if(nuevo&&F._fab){ cerrarModal('sheet',()=>{ S.mes=m.f.slice(0,7); S.q='';S.tipo='';S.acc='';S.cat='';S.sub=''; ir('movs'); window.scrollTo(0,0) }) }
+  else { cerrarForm(); S.mes=m.f.slice(0,7); render() } toast(rec?'Registrado · siguiente '+fCorta(sig):nuevo?'Guardado':'Actualizado');
   syncing(true);
   const payload={...m,id:nuevo?'':m.id};
   try{
