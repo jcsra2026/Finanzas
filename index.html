@@ -102,8 +102,21 @@ main{padding:0 16px}
 .acc-row.zero{opacity:.5}
 /* bottom nav */
 nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);padding:6px 8px calc(env(safe-area-inset-bottom) + 6px);display:flex;justify-content:space-around;align-items:center}
-nav.bottom button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:4px 10px;min-width:62px}
-nav.bottom button.on{color:var(--acc);font-weight:600}
+nav.bottom button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted);padding:4px 6px;min-width:62px;opacity:.8}
+nav.bottom button{transition:color .25s,opacity .25s}
+nav.bottom button .ni{position:relative;display:grid;place-items:center;width:58px;height:30px;border-radius:999px}
+nav.bottom button .ni::before{content:'';position:absolute;inset:0;border-radius:999px;background:var(--acc-soft);background:color-mix(in srgb,var(--acc) 24%,transparent);transform:scaleX(.35);opacity:0;transition:transform .32s cubic-bezier(.2,.9,.25,1.15),opacity .2s}
+nav.bottom button .ni svg{position:relative;z-index:1}
+nav.bottom button.on{color:var(--acc);font-weight:700;opacity:1}
+nav.bottom button.on .ni::before{transform:scaleX(1);opacity:1}
+nav.bottom button.on svg{stroke-width:2.4;animation:navpop .38s ease-out}
+nav.bottom button:active .ni{transform:scale(.92)}
+nav.bottom .fab{transition:transform .15s}
+nav.bottom .fab:active{transform:scale(.92)}
+@keyframes navpop{0%{transform:scale(.8)}55%{transform:scale(1.15)}100%{transform:scale(1)}}
+.view.on{animation:vista .22s ease-out}
+@keyframes vista{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){nav.bottom button .ni::before,nav.bottom button.on svg,.view.on{transition:none;animation:none}}
 nav.bottom .fab{width:56px;height:56px;border-radius:18px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-top:-26px;box-shadow:0 6px 18px rgba(109,40,217,.35);min-width:0;padding:0}
 nav.bottom .fab svg{width:28px;height:28px;stroke-width:2.4}
 /* sheet (form) */
@@ -220,11 +233,11 @@ details.cat-block .subs{padding:0 0 10px 48px}
 </div>
 
 <nav class="bottom">
-  <button data-v="inicio" class="on"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</button>
-  <button data-v="movs"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Movimientos</button>
+  <button data-v="inicio" class="on"><span class="ni"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Inicio</button>
+  <button data-v="movs"><span class="ni"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>Movimientos</button>
   <button class="fab" id="fab" aria-label="Nuevo movimiento"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-  <button data-v="cuentas"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg>Cuentas</button>
-  <button data-v="reportes"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reportes</button>
+  <button data-v="cuentas"><span class="ni"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg></span>Cuentas</button>
+  <button data-v="reportes"><span class="ni"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Reportes</button>
 </nav>
 
 <!-- Formulario de movimiento -->
@@ -367,6 +380,17 @@ function estadoTarjetas(){
       pagado:pagosReg.length>0,pagadoMonto:pagosReg.reduce((a,x)=>a+x.m,0),deuda:sal[t.met]||0};
   });
 }
+/* utilización de tarjetas: deuda actual ÷ límite de crédito, contra el tope que elijas */
+function utilizacion(){
+  const sal=saldos();
+  return D.tar.filter(t=>t.limite>0).map(t=>{const deuda=Math.max(0,-(sal[t.met]||0)), pct=deuda/t.limite*100, tope=t.alerta||0;
+    const estado=!tope?'':pct>=tope?'pasado':pct>=tope*0.8?'cerca':'ok';
+    return {met:t.met,limite:t.limite,deuda,pct,tope,topeMonto:tope*t.limite/100,estado}});
+}
+function utilBar(met){const u=utilizacion().find(x=>x.met===met); if(!u) return '';
+  const col=u.estado==='pasado'?'var(--gas)':u.estado==='cerca'?'#F59E0B':'var(--ing)';
+  return `<div style="margin-top:6px"><div class="bar-track" style="position:relative;height:7px;overflow:visible"><div class="bar-fill" style="width:${Math.min(100,Math.max(1.5,u.pct))}%;background:${col}"></div>${u.tope?`<i class="pace" style="left:${Math.min(100,u.tope)}%;opacity:.6"></i>`:''}</div>
+    <div class="small" style="margin-top:4px;color:${u.estado==='pasado'?'var(--gas)':u.estado==='cerca'?'#F59E0B':'var(--muted)'}">Utilización ${u.pct.toFixed(0)}% de ${fmt0(u.limite)}${u.tope?` · tope ${u.tope}% (${fmt0(u.topeMonto)})`:''}</div></div>`}
 function mejorOrigenPara(card){const u=uso(x=>x.t==='Transferencia'&&x.d===card,'o',365);return Object.keys(u).sort((a,b)=>u[b]-u[a])[0]||''}
 function promedioGasto(cat,n=3){const hoyM=(D.hoy||hoyLocal()).slice(0,7);let t=0;for(let i=1;i<=n;i++){const m=mesAdd(hoyM,-i);t+=D.mov.filter(x=>x.t==='Gasto'&&x.c===cat&&enMes(x,m)).reduce((a,x)=>a+x.m,0)}return t/n}
 function tipoMetodo(n){const m=D.met.find(x=>x.nombre===n);return m?m.tipo:'Débito'}
@@ -512,10 +536,12 @@ function alertasHTML(){
   const tj=est.filter(e=>!e.pagado&&e.dias<=7).sort((a,b)=>a.dias-b.dias);
   const cortes=est.filter(e=>e.diasCorte<=2).sort((a,b)=>a.diasCorte-b.diasCorte);
   const rc=D.rec.filter(r=>r.activo&&r.prox&&dias(hoy,r.prox)<=5).sort((a,b)=>a.prox.localeCompare(b.prox));
-  if(!tj.length&&!rc.length&&!cortes.length) return '';
+  const ut=utilizacion().filter(u=>u.estado==='cerca'||u.estado==='pasado').sort((a,b)=>b.pct/b.tope-a.pct/a.tope);
+  if(!tj.length&&!rc.length&&!cortes.length&&!ut.length) return '';
   const badge=n=>n<0?'<span class="badge red">Vencido</span>':n<=3?'<span class="badge red">'+(n===0?'Hoy':n+' d')+'</span>':n<=7?'<span class="badge amber">'+n+' d</span>':'';
   const filas=[
     ...tj.map(e=>{const c=color(e.met);return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(e.met))}</div><div class="mid"><div class="t1">Pago ${esc(e.met)}${badge(e.dias)}</div><div class="t2">${e.dias<0?'Fecha límite fue el '+fCorta(e.pagoF)+' · sin pago registrado':'Fecha límite '+fCorta(e.pagoF)+' · '+cuando(e.dias)}</div></div><div class="right"><div class="small muted">Deuda actual</div><div class="num gas" style="font-weight:700">${fmt(Math.abs(Math.min(0,e.deuda)))}</div><div class="al-btns"><button class="pill-btn" data-pay="${esc(e.met)}">Pagar</button></div></div></div>`}),
+    ...ut.map(u=>{const c=color(u.met),p=u.estado==='pasado';return `<div class="al-row" data-util="${esc(u.met)}" style="cursor:pointer"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(u.met))}</div><div class="mid"><div class="t1" style="white-space:normal">${esc(u.met)}<span class="badge ${p?'red':'amber'}">${p?'Pasaste tu tope':'Cerca del tope'}</span></div><div class="t2">Usas ${u.pct.toFixed(0)}% de tu línea · tu tope es ${u.tope}% (${fmt0(u.topeMonto)})</div></div><div class="right"><div class="small muted">Deuda</div><div class="num ${p?'gas':''}" style="font-weight:700;${p?'':'color:#F59E0B'}">${fmt(u.deuda)}</div></div></div>`}),
     ...cortes.map(e=>{const c=color(e.met);return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(e.met))}</div><div class="mid"><div class="t1">Corte ${esc(e.met)}<span class="badge amber">${e.diasCorte===0?'Hoy':cuando(e.diasCorte)}</span></div><div class="t2">${fCorta(e.proxCorte)} · lo que compres después entra al siguiente estado de cuenta</div></div></div>`}),
     ...rc.map(r=>{const n=dias(hoy,r.prox);const c=r.t==='Transferencia'?'var(--tra)':color(r.c);const cls=r.t==='Ingreso'?'ing':r.t==='Gasto'?'gas':'tra';
       return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}"><svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></div><div class="mid"><div class="t1">${esc(r.nombre)}${badge(n)}</div><div class="t2">${r.frec} · ${fCorta(r.prox)} · ${cuando(n)}</div></div><div class="right"><div class="num ${cls}" style="font-weight:700">${fmt(r.m)}</div><div class="al-btns"><button class="pill-btn ghost" data-skip="${esc(r.id)}">Omitir</button><button class="pill-btn" data-reg="${esc(r.id)}">Registrar</button></div></div></div>`})
@@ -523,6 +549,7 @@ function alertasHTML(){
   return `<div class="card"><h2>Por pagar y próximos</h2>${filas.join('')}</div>`;
 }
 function bindAlertas(el){
+  el.querySelectorAll('[data-util]').forEach(r=>r.onclick=()=>ir('cuentas'));
   el.querySelectorAll('[data-pay]').forEach(b=>b.onclick=()=>{const e=estadoTarjetas().find(x=>x.met===b.dataset.pay);
     abrirForm({id:'',f:D.hoy||hoyLocal(),t:'Transferencia',c:'Transferencia',s:'',o:mejorOrigenPara(e.met),d:e.met,m:'',n:'Pago tarjeta'})});
   el.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{const r=D.rec.find(x=>x.id===b.dataset.reg);if(!r)return;
@@ -600,7 +627,7 @@ function rCuentas(){
     arr.sort((a,b)=>Math.abs(sal[b]||0)-Math.abs(sal[a]||0));
     const tot=arr.reduce((a,n)=>a+(sal[n]||0),0);
     return `<div class="card"><h2 style="display:flex;justify-content:space-between"><span>${titulo[t]||t}</span><span class="num">${fmt(tot)}</span></h2>${arr.map(n=>{const v=sal[n]||0;const c=color(n);
-      return `<button class="acc-row ${Math.abs(v)<0.005?'zero':''}" data-acc="${esc(n)}"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(n))}</div><div class="mid"><div style="font-weight:600">${esc(n)}</div><div class="small muted">${t==='Crédito'?subT(n,v):'Saldo'}</div></div><div class="num" style="font-weight:700;${v<0?'color:var(--gas)':''}">${fmt(v)}</div></button>`}).join('')}</div>`}).join('');
+      return `<button class="acc-row ${Math.abs(v)<0.005?'zero':''}" data-acc="${esc(n)}"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(n))}</div><div class="mid"><div style="font-weight:600">${esc(n)}</div><div class="small muted">${t==='Crédito'?subT(n,v):'Saldo'}</div>${t==='Crédito'?utilBar(n):''}</div><div class="num" style="font-weight:700;${v<0?'color:var(--gas)':''}">${fmt(v)}</div></button>`}).join('')}</div>`}).join('');
   el.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>{S.acc=b.dataset.acc;S.cat='';S.sub='';S.tipo='';ir('movs')});
 }
 
@@ -735,6 +762,7 @@ function rTarjetas(el){
     return {t,tot,html:`<div class="card"><h2 style="display:flex;justify-content:space-between"><span>${esc(t)}</span><span class="badge ${e.diasCorte<=3?'amber':''}" style="${e.diasCorte>3?'background:var(--acc-soft);color:var(--acc)':''}">corte ${e.diasCorte===0?'hoy':cuando(e.diasCorte)}</span></h2>
       <div class="hero" style="margin-bottom:6px"><div class="stat"><small>Llevas en este periodo</small><b class="num gas">${fmt(tot)}</b><div class="delta muted">${g.length} compras desde el ${fCorta(addDays(e.corteF,1))}</div></div>
       <div class="stat"><small>Periodo anterior completo</small><b class="num">${fmt(ant)}</b><div class="delta muted">Deuda actual ${fmt(Math.abs(Math.min(0,sal[t]||0)))}</div></div></div>
+      ${utilBar(t)}<div style="height:8px"></div>
       ${items.length?barras(items,items[0][1],k=>color(k)):'<div class="small muted">Sin compras en este periodo.</div>'}</div>`}});
   bloques.sort((a,b)=>b.tot-a.tot);
   el.innerHTML=`<p class="small muted" style="padding:0 4px;margin:4px 0 10px">Compras hechas con cada tarjeta desde su último corte: es lo que irá en tu próximo estado de cuenta (según lo que registraste).</p>`+(bloques.map(b=>b.html).join('')||'<div class="empty">No tienes tarjetas de crédito.</div>');
@@ -835,7 +863,7 @@ function rAjustes(){
   </div>
   <div class="card"><h2>Categorías de gasto</h2>${bloqueTipo('Gasto')}<button class="tiny-btn" data-nc="Gasto" style="margin-top:8px">+ Nueva categoría de gasto</button></div>
   <div class="card"><h2>Categorías de ingreso</h2>${bloqueTipo('Ingreso')}<button class="tiny-btn" data-nc="Ingreso" style="margin-top:8px">+ Nueva categoría de ingreso</button></div>
-  <div class="card"><h2>Métodos de pago / cuentas</h2>${D.met.map(m=>`<div class="set-item"><div class="av" style="background:${color(m.nombre)}22;color:${color(m.nombre)}">${esc(iniciales(m.nombre))}</div><div class="mid"><div style="font-weight:600">${esc(m.nombre)}</div><div class="small muted">${esc(m.tipo)} · inicial ${fmt(m.inicial)} · ${usoMet[m.nombre]||0} movs${(()=>{const t=D.tar.find(x=>x.met===m.nombre);return t&&t.corte?` · corte ${t.corte}, pago ${t.pago}`:''})()}</div></div><button class="tiny-btn" data-em="${esc(m.id)}">Editar</button></div>`).join('')}<button class="tiny-btn" id="nm" style="margin-top:8px">+ Nuevo método de pago</button></div>
+  <div class="card"><h2>Métodos de pago / cuentas</h2>${D.met.map(m=>`<div class="set-item"><div class="av" style="background:${color(m.nombre)}22;color:${color(m.nombre)}">${esc(iniciales(m.nombre))}</div><div class="mid"><div style="font-weight:600">${esc(m.nombre)}</div><div class="small muted">${esc(m.tipo)} · inicial ${fmt(m.inicial)} · ${usoMet[m.nombre]||0} movs${(()=>{const t=D.tar.find(x=>x.met===m.nombre);return (t&&t.corte?` · corte ${t.corte}, pago ${t.pago}`:'')+(t&&t.limite?` · límite ${fmt0(t.limite)}`:'')+(t&&t.alerta?` · tope ${t.alerta}%`:'')})()}</div></div><button class="tiny-btn" data-em="${esc(m.id)}">Editar</button></div>`).join('')}<button class="tiny-btn" id="nm" style="margin-top:8px">+ Nuevo método de pago</button></div>
   <div class="card"><h2>Presupuestos mensuales</h2>${D.pre.length?D.pre.map(x=>`<div class="set-item"><div class="mid">${esc(x.cat)}</div><b class="num">${fmt(x.monto)}</b></div>`).join(''):'<div class="small muted">Sin presupuestos todavía.</div>'}<button class="tiny-btn" id="edPre" style="margin-top:8px">${D.pre.length?'Editar presupuestos':'+ Definir presupuestos'}</button></div>
   <div class="card"><h2>Movimientos recurrentes</h2>${D.rec.length?[...D.rec].sort((a,b)=>String(a.prox).localeCompare(String(b.prox))).map(r=>`<div class="set-item" style="${r.activo?'':'opacity:.5'}"><div class="mid"><div style="font-weight:600">${esc(r.nombre)}</div><div class="small muted">${fmt(r.m)} · ${r.frec} · próximo ${r.prox?fCorta(r.prox):'—'}${r.activo?'':' · pausado'}</div></div><button class="tiny-btn" data-er="${esc(r.id)}">Editar</button></div>`).join(''):'<div class="small muted">Renta, mesada, suscripciones, nómina… La app te los recuerda y los registras con un toque.</div>'}<button class="tiny-btn" id="nr" style="margin-top:8px">+ Nuevo recurrente</button></div>
   <div class="card"><h2>Alertas por correo</h2><div class="set-item"><div class="mid small">Correo diario a las 8 a. m. si una tarjeta vence en 3 días o menos, o si hay un recurrente por registrar.</div></div>
@@ -890,13 +918,18 @@ function formCat(tipo,o){
     <div id="tarBox" style="display:${o.tipo==='Crédito'?'block':'none'}">${(()=>{const t=D.tar.find(x=>x.met===o.nombre)||{};return `
       <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><input class="field" id="cCorte" inputmode="numeric" placeholder="ej. 15" value="${t.corte||''}"></div>
       <div style="flex:1"><div class="lbl">Día límite de pago</div><input class="field" id="cPago" inputmode="numeric" placeholder="ej. 5" value="${t.pago||''}"></div></div>
-      <div class="lbl">Límite de crédito (opcional)</div><input class="field" id="cLim" inputmode="decimal" value="${t.limite||''}">
-      <div class="small muted" style="margin-top:6px">Con esto la app calcula cuánto pagar después de cada corte y te avisa antes de la fecha límite.</div>`})()}</div>`;
+      <div class="small muted" style="margin-top:6px">Con esto la app te avisa del corte y de la fecha límite de pago.</div>
+      <div class="row2" style="gap:10px"><div style="flex:1.4"><div class="lbl">Límite de crédito</div><input class="field" id="cLim" inputmode="decimal" placeholder="ej. 30000" value="${t.limite||''}"></div>
+      <div style="flex:1"><div class="lbl">Tope de uso (%)</div><input class="field" id="cAlerta" inputmode="numeric" placeholder="ej. 30" value="${t.alerta||''}"></div></div>
+      <div class="small muted" id="cTopeTxt" style="margin-top:6px"></div>`})()}</div>`;
   if(!nuevo&&usados) campos+=`<p class="small muted" style="margin-top:16px">Se usa en ${usados} movimientos. Si cambias el nombre, también se actualizan esos movimientos.</p>`;
   $('#form2Body').innerHTML=campos;
   $('#form2Foot').innerHTML=`${!nuevo?`<button class="btn dan" id="cDel" ${usados?'disabled title="En uso"':''}>Borrar</button>`:''}<button class="btn pri" id="cSave">Guardar</button>`;
   abrirModal('sheet2');
-  if(tipo==='met') $('#cTipo').onchange=e=>$('#tarBox').style.display=e.target.value==='Crédito'?'block':'none';
+  if(tipo==='met'){ $('#cTipo').onchange=e=>$('#tarBox').style.display=e.target.value==='Crédito'?'block':'none';
+    const topeTxt=()=>{const l=parseFloat($('#cLim').value)||0,a=parseFloat($('#cAlerta').value)||0;
+      $('#cTopeTxt').textContent=l&&a?`Te avisaré en Inicio al acercarte (${Math.round(a*0.8)}%) y al pasar el ${a}% = ${fmt0(l*a/100)} de deuda.`:l?'Pon un tope en % para recibir avisos (se suele recomendar 30%).':'Con el límite, la app calcula tu % de utilización.'};
+    $('#cLim').oninput=topeTxt; $('#cAlerta').oninput=topeTxt; topeTxt(); }
   $('#cSave').onclick=async()=>{
     const n=$('#cNombre').value.trim(); if(!n) return toast('Escribe un nombre');
     const p={id:o.id,nombre:n,anterior:o.nombre};
@@ -908,7 +941,9 @@ function formCat(tipo,o){
       if(tipo==='met'&&p.tipo==='Crédito'){const corte=parseInt($('#cCorte').value)||0,pago=parseInt($('#cPago').value)||0;
         if(corte>31||pago>31) throw new Error('Los días deben ser de 1 a 31');
         const t=D.tar.find(x=>x.met===o.nombre||x.met===n);
-        if(corte||pago||t) await api('guardarCatalogo','tar',{id:t?t.id:'',met:n,corte,pago,limite:parseFloat($('#cLim').value)||0});}
+        const limite=parseFloat(String($('#cLim').value).replace(/[^0-9.]/g,''))||0, alerta=parseFloat($('#cAlerta').value)||0;
+        if(alerta>100) throw new Error('El tope debe ser de 1 a 100%');
+        if(corte||pago||limite||alerta||t) await api('guardarCatalogo','tar',{id:t?t.id:'',met:n,corte,pago,limite,alerta});}
       cerrarModal('sheet2'); await cargar(true); toast('Guardado') }
     catch(e){ toast('No se pudo guardar: '+(e.message||e)); $('#cSave').disabled=false }
     syncing(false);
