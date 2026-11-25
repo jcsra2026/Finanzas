@@ -1293,15 +1293,13 @@ function rAjustes(){
   <div class="card"><h2>Métodos de pago / cuentas</h2>${D.met.map(m=>`<div class="set-item"><div class="av" style="background:${color(m.nombre)}22;color:${color(m.nombre)}">${esc(iniciales(m.nombre))}</div><div class="mid"><div style="font-weight:600">${esc(m.nombre)}</div><div class="small muted">${esc(m.tipo)} · inicial ${fmt(m.inicial)} · ${usoMet[m.nombre]||0} movs${(()=>{const t=D.tar.find(x=>x.met===m.nombre);return (t&&t.corte?` · corte ${t.corte}, pago ${t.pago}`:'')+(t&&t.limite?` · límite ${fmt0(t.limite)}`:'')+(t&&t.alerta?` · tope ${t.alerta}%`:'')})()}</div></div><button class="tiny-btn" data-em="${esc(m.id)}">Editar</button></div>`).join('')}<button class="tiny-btn" id="nm" style="margin-top:8px">+ Nuevo método de pago</button></div>
   <div class="card"><h2>Presupuestos mensuales</h2>${D.pre.length?D.pre.map(x=>`<div class="set-item"><div class="mid">${esc(x.cat)}</div><b class="num">${fmt(x.monto)}</b></div>`).join(''):'<div class="small muted">Sin presupuestos todavía.</div>'}<button class="tiny-btn" id="edPre" style="margin-top:8px">${D.pre.length?'Editar presupuestos':'+ Definir presupuestos'}</button></div>
   <div class="card"><h2>Movimientos recurrentes</h2>${D.rec.length?[...D.rec].sort((a,b)=>String(a.prox).localeCompare(String(b.prox))).map(r=>`<div class="set-item" style="${r.activo?'':'opacity:.5'}"><div class="mid"><div style="font-weight:600">${esc(r.nombre)}</div><div class="small muted">${fmt(r.m)} · ${r.frec} · próximo ${r.prox?fCorta(r.prox):'—'}${r.activo?'':' · pausado'}</div></div><button class="tiny-btn" data-er="${esc(r.id)}">Editar</button></div>`).join(''):'<div class="small muted">Sin recurrentes</div>'}<button class="tiny-btn" id="nr" style="margin-top:8px">+ Nuevo recurrente</button></div>
-  <div class="card"><h2>Alertas por correo</h2><div class="set-item"><div class="mid small">Correo diario 8 a. m. con pagos próximos</div></div>
-    <div class="set-item"><div class="mid" id="alEstado">Estado: ${S.alertas===undefined?'consultando…':S.alertas?'<b class="ing">activadas</b>':'<b>desactivadas</b>'}</div>
-    ${S.alertas?'<button class="tiny-btn" id="alOff">Desactivar</button>':'<button class="tiny-btn" id="alOn">Activar</button>'}<button class="tiny-btn" id="alTest">Probar</button></div></div>
   <div class="card"><h2>Datos</h2>
     <div class="set-item"><div class="mid">Exportar movimientos (CSV para Excel)</div><button class="tiny-btn" id="exp">Descargar</button></div>
     <div class="set-item"><div class="mid">Movimientos pendientes de sincronizar</div><b>${cola().length}</b></div>
     <div class="set-item"><div class="mid small muted">${D.mov.length.toLocaleString('es-MX')} movimientos</div></div>
     <div class="set-item"><div class="mid">Tu cuenta<div class="small muted">${esc(FB_AUTH.currentUser?FB_AUTH.currentUser.email:'—')}</div></div><button class="tiny-btn" id="cfgEd">Cerrar sesión</button></div>
-  </div>`;
+  </div>
+  <div class="small muted" style="text-align:center;padding:4px 0 12px">Versión ${APP_VER}</div>`;
   el.querySelectorAll('[data-ec]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();formCat('cat',D.cat.find(c=>String(c.id)===b.dataset.ec))});
   el.querySelectorAll('[data-es]').forEach(b=>b.onclick=()=>formCat('sub',D.sub.find(s=>String(s.id)===b.dataset.es)));
   el.querySelectorAll('[data-em]').forEach(b=>b.onclick=()=>formCat('met',D.met.find(m=>String(m.id)===b.dataset.em)));
@@ -1321,11 +1319,6 @@ function rAjustes(){
   el.querySelectorAll('[data-lay-dn]').forEach(b=>b.onclick=()=>{const i=+b.dataset.layDn;if(i<lay.length-1){[lay[i+1],lay[i]]=[lay[i],lay[i+1]];aplicar(lay)}});
   el.querySelector('#nr').onclick=()=>formRec();
   el.querySelectorAll('[data-er]').forEach(b=>b.onclick=()=>formRec(D.rec.find(r=>r.id===b.dataset.er)));
-  if(S.alertas===undefined) api('estadoAlertas').then(v=>{S.alertas=!!v;if(S.view==='ajustes')rAjustes()}).catch(()=>{S.alertas=false});
-  const al=async(fn,msg)=>{syncing(true);try{const r=await api(fn);if(fn==='instalarAlertas')S.alertas=true;if(fn==='desinstalarAlertas')S.alertas=false;toast(msg);rAjustes()}catch(e){toast('Error: '+(e.message||e)+'. Ejecuta instalarAlertas una vez desde el editor para autorizar.')}syncing(false)};
-  const on=el.querySelector('#alOn'); if(on) on.onclick=()=>al('instalarAlertas','Alertas activadas');
-  const off=el.querySelector('#alOff'); if(off) off.onclick=()=>al('desinstalarAlertas','Alertas desactivadas');
-  el.querySelector('#alTest').onclick=()=>al('probarAlerta','Correo de prueba enviado');
 }
 
 function exportar(){
@@ -1728,6 +1721,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
+const APP_VER='35';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
@@ -1756,13 +1750,9 @@ async function cambiarCandado(activar){
         user:{id:azar(16),name:(u&&u.email)||'Mis Finanzas',displayName:'Mis Finanzas'},
         pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
         authenticatorSelection:sel,attestation:'none',timeout:60000}});
-    let cred=null, err1='';
-    try{ cred=await crear({authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'}) }
-    catch(e){ err1=(e&&e.name||'Error')+': '+(e&&e.message||'') }
-    if(!cred && await confirmar('No se activó.\n\n'+err1+'\n\n¿Intentar de otra forma?','Intentar','pri')){
-      try{ cred=await crear({userVerification:'required',residentKey:'discouraged',requireResidentKey:false}) }
-      catch(e){ await confirmar('Tampoco se activó.\n\n'+(e&&e.name||'Error')+': '+(e&&e.message||'')+'\n\nMándale una captura de esto a Claude.','Entendido','pri') }
-    }
+    let cred=null;
+    try{ cred=await crear({userVerification:'required',residentKey:'discouraged',requireResidentKey:false}) }
+    catch(e){ if(e&&e.name==='NotAllowedError') toast('No se activó'); else await confirmar('No se activó.\n\n'+(e&&e.name||'Error')+': '+(e&&e.message||''),'Entendido','pri') }
     if(cred){ store.set(CAND_KEY,{id:b64e(cred.rawId)}); toast('Bloqueo activado') }
   } else {
     try{ await verificarHuella(); localStorage.removeItem(CAND_KEY); toast('Bloqueo desactivado') }catch(e){ toast('No se pudo verificar') }
