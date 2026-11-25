@@ -1,6 +1,6 @@
 // Mis Finanzas — abre al instante (y sin señal) con la copia guardada; busca actualizaciones en segundo plano.
 // Cambia VERSION cuando actualices index.html.
-const VERSION = 'mf-v22';
+const VERSION = 'mf-v23';
 const FB = 'https://www.gstatic.com/firebasejs/12.11.0/';
 const ARCHIVOS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   FB + 'firebase-app.js', FB + 'firebase-auth.js', FB + 'firebase-firestore.js'];
