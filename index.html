@@ -184,7 +184,7 @@ textarea.field{height:70px;padding:10px 12px;resize:none}
 .confirm-veil.on{display:flex}
 .confirm-card{background:var(--pop);border:1.5px solid var(--pop-line);border-radius:var(--r);box-shadow:var(--pop-shadow);padding:22px 20px 20px;max-width:420px;width:100%;animation:cfin .18s ease-out}
 @keyframes cfin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
-.confirm-msg{font-size:calc(17px*var(--fs));font-weight:600;line-height:1.35;margin-bottom:20px}
+.confirm-msg{white-space:pre-line;overflow-wrap:anywhere;font-size:calc(17px*var(--fs));font-weight:600;line-height:1.35;margin-bottom:20px}
 .confirm-btns .btn.dan{background:#DC2645;color:#fff}
 .confirm-btns{display:flex;gap:10px}
 .confirm-btns .btn{flex:1}
@@ -1751,14 +1751,19 @@ async function cambiarCandado(activar){
   if(activar){
     let ok=false; try{ ok=!!window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() }catch(e){}
     if(!ok){ toast('Este dispositivo no lo permite'); return volver() }
-    try{
-      const u=FB_AUTH.currentUser;
-      const cred=await navigator.credentials.create({publicKey:{challenge:azar(32),rp:{name:'Mis Finanzas'},
+    const u=FB_AUTH.currentUser;
+    const crear=sel=>navigator.credentials.create({publicKey:{challenge:azar(32),rp:{name:'Mis Finanzas',id:location.hostname},
         user:{id:azar(16),name:(u&&u.email)||'Mis Finanzas',displayName:'Mis Finanzas'},
         pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
-        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},attestation:'none',timeout:60000}});
-      store.set(CAND_KEY,{id:b64e(cred.rawId)}); toast('Bloqueo activado');
-    }catch(e){ toast('No se activó') }
+        authenticatorSelection:sel,attestation:'none',timeout:60000}});
+    let cred=null, err1='';
+    try{ cred=await crear({authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'}) }
+    catch(e){ err1=(e&&e.name||'Error')+': '+(e&&e.message||'') }
+    if(!cred && await confirmar('No se activó.\n\n'+err1+'\n\n¿Intentar de otra forma?','Intentar','pri')){
+      try{ cred=await crear({userVerification:'required',residentKey:'discouraged',requireResidentKey:false}) }
+      catch(e){ await confirmar('Tampoco se activó.\n\n'+(e&&e.name||'Error')+': '+(e&&e.message||'')+'\n\nMándale una captura de esto a Claude.','Entendido','pri') }
+    }
+    if(cred){ store.set(CAND_KEY,{id:b64e(cred.rawId)}); toast('Bloqueo activado') }
   } else {
     try{ await verificarHuella(); localStorage.removeItem(CAND_KEY); toast('Bloqueo desactivado') }catch(e){ toast('No se pudo verificar') }
   }
