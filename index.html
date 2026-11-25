@@ -142,6 +142,22 @@ nav.bottom .fab svg{width:28px;height:28px;stroke-width:2.4}
 .lbl{font-size:calc(12px*var(--fs));font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px}
 .field{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:0 12px;outline:none}
 .field:focus{border-color:var(--acc)}
+/* desplegable propio (reemplaza al <select> del navegador, cuya lista
+   la dibuja el navegador y no se puede estilizar) */
+.dd{position:relative}
+.dd-btn{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:0 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left}
+.dd-btn:focus{border-color:var(--acc)}
+.dd-btn .dd-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-btn svg{width:18px;height:18px;color:var(--muted);flex:none;transition:transform .2s}
+.dd.open .dd-btn svg{transform:rotate(180deg)}
+.dd-panel{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:80;display:none;max-height:260px;overflow-y:auto}
+.dd.open .dd-panel{display:block}
+.dd-opt{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}
+.dd-opt:last-child{border-bottom:0}
+.dd-opt:active{background:var(--acc-soft)}
+.dd-opt.on{color:var(--acc);font-weight:700}
+.dd-opt .tick{color:var(--acc);font-weight:700}
+
 textarea.field{height:70px;padding:10px 12px;resize:none}
 .row2{display:flex;gap:8px;align-items:center}
 .btn{height:48px;border-radius:14px;padding:0 18px;font-weight:700;flex:1}
@@ -286,7 +302,7 @@ details.cat-block .subs{padding:0 0 10px 48px}
 /* ============ Firebase ============ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA0CeKBk90eGaUd9i14MvaapnKFKzveViw",
@@ -304,7 +320,7 @@ const FB_PROVIDER = new GoogleAuthProvider();
 // si hay sesión iniciada. Sirve para no preguntar antes de tiempo.
 const FB_READY = new Promise((res)=>{ const off = onAuthStateChanged(FB_AUTH, (u)=>{ off(); res(u); }); });
 async function fbEntrar(){ await signInWithPopup(FB_AUTH, FB_PROVIDER); }
-async function fbSalir(){ await signOut(FB_AUTH); }
+async function fbSalir(){ fbDetenerEscucha(); await signOut(FB_AUTH); }
 
 /* ============ estado ============ */
 let D = {mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:''};
@@ -328,6 +344,24 @@ function color(name){let h=0;for(const c of String(name))h=(h*31+c.charCodeAt(0)
 function iniciales(s){return String(s||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2400)}
 function syncing(on){$('#sync').classList.toggle('on',!!on)}
+/* Desplegable propio: ddHTML dibuja el botón + la lista, bindDD conecta
+   la elección con onPick. La lista es HTML de la app, no la del navegador. */
+function ddHTML(id, opciones, sel){
+  const cur=opciones.find(o=>o[0]===sel)||opciones[0]||['',''];
+  return `<div class="dd" id="dd-${id}"><button type="button" class="dd-btn"><span class="dd-val">${esc(cur[1])}</span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><div class="dd-panel">${opciones.map(([v,l])=>`<button type="button" class="dd-opt ${v===sel?'on':''}" data-v="${esc(v)}"><span>${esc(l)}</span>${v===sel?'<span class="tick">✓</span>':''}</button>`).join('')}</div></div>`;
+}
+function bindDD(scope, id, onPick){
+  const root=scope.querySelector('#dd-'+id); if(!root) return;
+  const btn=root.querySelector('.dd-btn');
+  btn.onclick=e=>{ e.stopPropagation(); const was=root.classList.contains('open'); document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')); if(!was) root.classList.add('open'); };
+  root.querySelectorAll('.dd-opt').forEach(b=>b.onclick=e=>{ e.stopPropagation();
+    root.querySelector('.dd-val').textContent=b.querySelector('span').textContent;
+    root.querySelectorAll('.dd-opt').forEach(x=>{ x.classList.remove('on'); const t=x.querySelector('.tick'); if(t) t.remove(); });
+    b.classList.add('on'); b.insertAdjacentHTML('beforeend','<span class="tick">✓</span>');
+    root.classList.remove('open'); onPick(b.dataset.v); });
+}
+document.addEventListener('click',()=>{ document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open')) });
+
 
 /* ============ apariencia (se guarda en este dispositivo) ============ */
 const AP_KEY='misfinanzas_apariencia_v1';
@@ -387,6 +421,54 @@ async function fbGetData(){
     cfg:cfgSnap.exists()?cfgSnap.data():{},
     hoy:hoyLocal()
   };
+}
+
+/* ============ escucha en vivo ============ */
+/* Cuando algo cambia en Firestore (por ejemplo, un movimiento guardado
+   en otro dispositivo), Firestore avisa solo y la app actualiza los
+   datos y vuelve a dibujar, sin recargar la página. Antes, cada
+   dispositivo solo leía los datos una vez al abrir la app. */
+let FB_UNSUBS=null, FB_SRV=null, FB_LISTO={}, FB_SYNC_T=null;
+function fbAplicarServidor(){
+  if(!FB_SRV) return;
+  const claves=['mov','cat','sub','met','pre','rec','tar','cfg'];
+  if(!claves.every(k=>FB_LISTO[k])) return; // espera a tener todas las colecciones
+  D={mov:FB_SRV.mov.map(x=>({...x})),cat:[...FB_SRV.cat],sub:[...FB_SRV.sub],met:[...FB_SRV.met],pre:[...FB_SRV.pre],rec:[...FB_SRV.rec],tar:[...FB_SRV.tar],cfg:{...FB_SRV.cfg},hoy:hoyLocal()};
+  normalizar();
+  store.set(CACHE_KEY,{mov:FB_SRV.mov,cat:FB_SRV.cat,sub:FB_SRV.sub,met:FB_SRV.met,pre:FB_SRV.pre,rec:FB_SRV.rec,tar:FB_SRV.tar,cfg:FB_SRV.cfg,hoy:D.hoy});
+  aplicarCola();
+  render();
+}
+function fbEscuchar(){
+  if(FB_UNSUBS||!FB_AUTH.currentUser) return; // ya escucha, o sin sesión
+  FB_SRV={mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],cfg:{},hoy:hoyLocal()};
+  FB_LISTO={};
+  const tocar=()=>{ clearTimeout(FB_SYNC_T); FB_SYNC_T=setTimeout(fbAplicarServidor,150); };
+  const subs=[];
+  const escucharCol=(col,clave,conv,ordenar)=>{
+    subs.push(onSnapshot(collection(FB_DB,col),snap=>{
+      FB_SRV[clave]=snap.docs.map(conv);
+      if(ordenar) FB_SRV[clave].sort((a,b)=>a.f.localeCompare(b.f));
+      FB_LISTO[clave]=true; tocar();
+    },()=>{ /* si la escucha falla, la app sigue con recarga manual */ }));
+  };
+  escucharCol('movimientos','mov',MOV_DE_FB,true);
+  escucharCol('categorias','cat',CAT_DE_FB.cat);
+  escucharCol('subcategorias','sub',CAT_DE_FB.sub);
+  escucharCol('metodos','met',CAT_DE_FB.met);
+  escucharCol('presupuestos','pre',CAT_DE_FB.pre);
+  escucharCol('recurrentes','rec',CAT_DE_FB.rec);
+  escucharCol('tarjetas','tar',CAT_DE_FB.tar);
+  subs.push(onSnapshot(doc(FB_DB,'config','app'),snap=>{
+    FB_SRV.cfg=snap.exists()?snap.data():{};
+    FB_LISTO.cfg=true; tocar();
+  },()=>{}));
+  FB_UNSUBS=subs;
+}
+function fbDetenerEscucha(){
+  if(!FB_UNSUBS) return;
+  FB_UNSUBS.forEach(u=>{ try{u()}catch(e){} });
+  FB_UNSUBS=null; FB_SRV=null; FB_LISTO={};
 }
 async function fbGuardarMovimiento(p){
   const data=MOV_A_FB(p);
@@ -484,10 +566,10 @@ async function cargar(silencioso){
   try{
     const data=await api('getData');
     D=data; normalizar(); store.set(CACHE_KEY,data);
-    aplicarCola(); render();
+    aplicarCola(); render(); fbEscuchar();
     if(!silencioso) toast('Datos actualizados');
   }catch(e){
-    if(/Sesión no iniciada/i.test(e.message||'')){ mostrarSetup('Tu sesión terminó. Vuelve a entrar con Google.'); }
+    if(/Sesión no iniciada/i.test(e.message||'')){ fbDetenerEscucha(); mostrarSetup('Tu sesión terminó. Vuelve a entrar con Google.'); }
     else if(!D.mov.length) $('#loading').textContent='No pude cargar los datos: '+(e.message||e);
     else toast('Sin conexión, mostrando datos guardados') }
   syncing(false);
@@ -1097,12 +1179,15 @@ function exportar(){
 
 function formCat(tipo,o){
   o=o||{}; const nuevo=o.id===undefined||o.id===null||o.id==='';
+  const CV={tipo:o.tipo||'Gasto',cat:o.cat||''};
+  const catsSub=D.cat.filter(c=>c.tipo!=='Transferencia').map(c=>c.nombre);
+  if(!CV.cat) CV.cat=catsSub[0]||'';
   const usados=tipo==='cat'?D.mov.filter(x=>x.c===o.nombre).length:tipo==='sub'?D.mov.filter(x=>x.c===o.cat&&x.s===o.nombre).length:D.mov.filter(x=>x.o===o.nombre||x.d===o.nombre).length;
   $('#sheet2Title').textContent=(nuevo?'Nueva ':'Editar ')+({cat:'categoría',sub:'subcategoría',met:'cuenta / método'})[tipo];
   let campos=`<div class="lbl">Nombre</div><input class="field" id="cNombre" value="${esc(o.nombre||'')}" autocomplete="off">`;
-  if(tipo==='cat') campos+=`<div class="lbl">Tipo</div><select class="field" id="cTipo">${['Gasto','Ingreso'].map(t=>`<option ${o.tipo===t?'selected':''}>${t}</option>`).join('')}</select>`;
-  if(tipo==='sub') campos+=`<div class="lbl">Categoría</div><select class="field" id="cCat">${D.cat.filter(c=>c.tipo!=='Transferencia').map(c=>`<option ${o.cat===c.nombre?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select>`;
-  if(tipo==='met') campos+=`<div class="lbl">Tipo</div><select class="field" id="cTipo">${['Débito','Crédito','Efectivo'].map(t=>`<option ${o.tipo===t?'selected':''}>${t}</option>`).join('')}</select>
+  if(tipo==='cat') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Gasto','Gasto'],['Ingreso','Ingreso']],CV.tipo)}`;
+  if(tipo==='sub') campos+=`<div class="lbl">Categoría</div>${ddHTML('cCat',catsSub.map(n=>[n,n]),CV.cat)}`;
+  if(tipo==='met') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Débito','Débito'],['Crédito','Crédito'],['Efectivo','Efectivo']],CV.tipo)}
     <div class="lbl">Monto inicial</div><input class="field" id="cIni" inputmode="decimal" value="${o.inicial??0}"><div class="small muted" style="margin-top:6px">Tarjetas: la deuda inicial va en negativo</div>
     <div id="tarBox" style="display:${o.tipo==='Crédito'?'block':'none'}">${(()=>{const t=D.tar.find(x=>x.met===o.nombre)||{};return `
       <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><input class="field" id="cCorte" inputmode="numeric" placeholder="ej. 15" value="${t.corte||''}"></div>
@@ -1112,18 +1197,20 @@ function formCat(tipo,o){
       <div class="small muted" id="cTopeTxt" style="margin-top:6px"></div>`})()}</div>`;
   if(!nuevo&&usados) campos+=`<p class="small muted" style="margin-top:16px">En ${usados} movimientos (se actualizan si cambias el nombre)</p>`;
   $('#form2Body').innerHTML=campos;
+  bindDD($('#form2Body'),'cTipo',v=>{CV.tipo=v;const tb=$('#tarBox');if(tb)tb.style.display=v==='Crédito'?'block':'none';});
+  bindDD($('#form2Body'),'cCat',v=>{CV.cat=v;});
   $('#form2Foot').innerHTML=`${!nuevo?`<button class="btn dan" id="cDel" ${usados?'disabled title="En uso"':''}>Borrar</button>`:''}<button class="btn pri" id="cSave">Guardar</button>`;
   abrirModal('sheet2');
-  if(tipo==='met'){ $('#cTipo').onchange=e=>$('#tarBox').style.display=e.target.value==='Crédito'?'block':'none';
+  if(tipo==='met'){
     const topeTxt=()=>{const l=parseFloat($('#cLim').value)||0,a=parseFloat($('#cAlerta').value)||0;
       $('#cTopeTxt').textContent=l&&a?`${a}% = ${fmt0(l*a/100)} de deuda`:l?'Recomendado: 30%':''};
     $('#cLim').oninput=topeTxt; $('#cAlerta').oninput=topeTxt; topeTxt(); }
   $('#cSave').onclick=async()=>{
     const n=$('#cNombre').value.trim(); if(!n) return toast('Escribe un nombre');
     const p={id:o.id,nombre:n,anterior:o.nombre};
-    if(tipo==='cat') p.tipo=$('#cTipo').value;
-    if(tipo==='sub') p.cat=$('#cCat').value;
-    if(tipo==='met'){p.tipo=$('#cTipo').value;p.inicial=parseFloat(String($('#cIni').value).replace(/[^0-9.-]/g,''))||0}
+    if(tipo==='cat') p.tipo=CV.tipo;
+    if(tipo==='sub') p.cat=CV.cat;
+    if(tipo==='met'){p.tipo=CV.tipo;p.inicial=parseFloat(String($('#cIni').value).replace(/[^0-9.-]/g,''))||0}
     $('#cSave').disabled=true; syncing(true);
     try{ await api('guardarCatalogo',tipo,p);
       if(tipo==='met'&&p.tipo==='Crédito'){const corte=parseInt($('#cCorte').value)||0,pago=parseInt($('#cPago').value)||0;
@@ -1180,19 +1267,23 @@ function formRec(r){
     $('#sheet2Title').textContent=nuevo?'Nuevo recurrente':'Editar recurrente';
     $('#form2Body').innerHTML=`
       <div class="lbl">Nombre</div><input class="field" id="rNom" placeholder="ej. Renta, Netflix, Mesada" value="${esc(R.nombre)}">
-      <div class="lbl">Tipo</div><select class="field" id="rTipo">${opt(['Gasto','Ingreso','Transferencia'],R.t)}</select>
+      <div class="lbl">Tipo</div>${ddHTML('rTipo',[['Gasto','Gasto'],['Ingreso','Ingreso'],['Transferencia','Transferencia']],R.t)}
       <div class="lbl">Importe</div><input class="field" id="rImp" inputmode="decimal" value="${R.m}">
-      ${esT?'':`<div class="lbl">Categoría</div><select class="field" id="rCat">${opt(catsDe(R.t),R.c,'Elige…')}</select>
-      <div class="lbl">Subcategoría</div><select class="field" id="rSub">${opt(R.c?subcatsDe(R.c):[],R.s,'(ninguna)')}</select>`}
-      <div class="lbl">${esT?'Desde':R.t==='Ingreso'?'Recibido en':'Pagado con'}</div><select class="field" id="rO">${opt(mets,R.o,'Elige…')}</select>
-      ${esT?`<div class="lbl">Hacia</div><select class="field" id="rD">${opt(mets,R.d,'Elige…')}</select>`:''}
-      <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Se repite</div><select class="field" id="rFrec">${opt(FRECS,R.frec)}</select></div>
+      ${esT?'':`<div class="lbl">Categoría</div>${ddHTML('rCat',catsDe(R.t).map(v=>[v,v]),R.c)}
+      <div class="lbl">Subcategoría</div>${ddHTML('rSub',[['','(ninguna)'],...(R.c?subcatsDe(R.c):[]).map(v=>[v,v])],R.s)}`}
+      <div class="lbl">${esT?'Desde':R.t==='Ingreso'?'Recibido en':'Pagado con'}</div>${ddHTML('rO',[['','Elige…'],...mets.map(v=>[v,v])],R.o)}
+      ${esT?`<div class="lbl">Hacia</div>${ddHTML('rD',[['','Elige…'],...mets.map(v=>[v,v])],R.d)}`:''}
+      <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Se repite</div>${ddHTML('rFrec',FRECS.map(v=>[v,v]),R.frec)}</div>
       <div style="flex:1"><div class="lbl">Próxima fecha</div><input type="date" class="field" id="rProx" value="${R.prox||''}"></div></div>
       <div class="lbl">Nota</div><input class="field" id="rNota" value="${esc(R.n)}">
       <label class="set-item" style="margin-top:10px"><input type="checkbox" id="rAct" ${R.activo?'checked':''} style="width:20px;height:20px"><span class="mid">Activo</span></label>`;
-    const leer=()=>{R.nombre=$('#rNom').value;R.t=$('#rTipo').value;R.m=$('#rImp').value;R.c=$('#rCat')?$('#rCat').value:'Transferencia';R.s=$('#rSub')?$('#rSub').value:'';R.o=$('#rO').value;R.d=$('#rD')?$('#rD').value:'';R.frec=$('#rFrec').value;R.prox=$('#rProx').value;R.n=$('#rNota').value;R.activo=$('#rAct').checked};
-    $('#rTipo').onchange=()=>{leer();R.c='';R.s='';dibujar()};
-    if($('#rCat')) $('#rCat').onchange=()=>{leer();R.s='';dibujar()};
+    const leer=()=>{R.nombre=$('#rNom').value;R.m=$('#rImp').value;R.prox=$('#rProx').value;R.n=$('#rNota').value;R.activo=$('#rAct').checked};
+    bindDD($('#form2Body'),'rTipo',v=>{leer();R.t=v;R.c=v==='Transferencia'?'Transferencia':'';R.s='';dibujar()});
+    bindDD($('#form2Body'),'rCat',v=>{leer();R.c=v;R.s='';dibujar()});
+    bindDD($('#form2Body'),'rSub',v=>{R.s=v});
+    bindDD($('#form2Body'),'rO',v=>{R.o=v});
+    bindDD($('#form2Body'),'rD',v=>{R.d=v});
+    bindDD($('#form2Body'),'rFrec',v=>{R.frec=v});
     $('#form2Foot').innerHTML=`${!nuevo?'<button class="btn dan" id="rDel">Borrar</button>':''}<button class="btn pri" id="rSave">Guardar</button>`;
     $('#rSave').onclick=async()=>{
       leer(); const imp=parseFloat(String(R.m).replace(/[^0-9.]/g,''));
@@ -1323,7 +1414,7 @@ $('#sOk').onclick=async()=>{
   try{
     await fbEntrar();
     const data=await api('getData'); D=data; normalizar(); store.set(CACHE_KEY,data);
-    $('nav.bottom').style.display=''; $('#btnRefresh').style.display=$('#btnAjustes').style.display=''; S.view='inicio'; ir('inicio'); toast('¡Conectado!')
+    $('nav.bottom').style.display=''; $('#btnRefresh').style.display=$('#btnAjustes').style.display=''; S.view='inicio'; ir('inicio'); fbEscuchar(); toast('¡Conectado!')
   }
   catch(e){ $('#sMsg').textContent='No se pudo entrar: '+(e.message||e) }
   $('#sOk').disabled=false;
