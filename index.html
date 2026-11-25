@@ -119,8 +119,10 @@ nav.bottom button:active .ni{transform:scale(.92)}
 nav.bottom .fab{transition:transform .15s}
 nav.bottom .fab:active{transform:scale(.92)}
 @keyframes navpop{0%{transform:scale(.8)}55%{transform:scale(1.15)}100%{transform:scale(1)}}
-.view.on{animation:vista .22s ease-out}
-@keyframes vista{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.view.on{animation:vista .3s cubic-bezier(.22,.9,.3,1)}
+.view.on.izq{animation-name:vistaIzq}
+@keyframes vista{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes vistaIzq{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){nav.bottom button .ni::before,nav.bottom button.on svg,.view.on{transition:none;animation:none}}
 nav.bottom .fab{width:56px;height:56px;border-radius:18px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-top:-26px;box-shadow:0 6px 18px rgba(109,40,217,.35);min-width:0;padding:0}
 nav.bottom .fab svg{width:28px;height:28px;stroke-width:2.4}
@@ -716,7 +718,7 @@ function ir(v,desdeAtras,pestana){
   }
   const mismo=v===S.view;
   if(!mismo) S.scroll[S.view]=scrollY;
-  S.view=v; document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
+  const orden={inicio:0,movs:1,cuentas:2,reportes:3,ajustes:4};const atras=desdeAtras||(orden[v]??0)<(orden[S.view]??0);S.view=v;document.querySelectorAll('.view').forEach(e=>{e.classList.toggle('on',e.id==='v-'+v);e.classList.toggle('izq',atras&&e.id==='v-'+v)});
   document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   $('#title').textContent=TITULOS[v]; render();
   if(!mismo) window.scrollTo(0,desdeAtras?(S.scroll[v]||0):0);
