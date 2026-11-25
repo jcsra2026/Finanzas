@@ -199,6 +199,8 @@ textarea.field{height:70px;padding:10px 12px;resize:none}
 .voz-mic{width:72px;height:72px;border-radius:50%;margin:4px auto 14px;display:grid;place-items:center;background:var(--acc);color:var(--acc-ink);animation:vozpulso 1.4s ease-in-out infinite}
 .voz-mic svg{width:34px;height:34px;stroke-width:2.2}
 @keyframes vozpulso{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 55%,transparent)}50%{box-shadow:0 0 0 16px color-mix(in srgb,var(--acc) 0%,transparent)}}
+.confirm-veil.error .voz-mic{animation:none;background:var(--gas)}
+#vozEstado.gas{font-size:calc(15px*var(--fs));font-weight:600}
 .voz-txt{min-height:24px;font-size:calc(16px*var(--fs));color:var(--ink);font-style:italic}
 .voz-banner{display:flex;gap:8px;align-items:flex-start;background:var(--acc-soft);color:var(--acc);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:calc(14px*var(--fs))}
 .voz-banner svg{width:18px;height:18px;flex:none;margin-top:1px}
@@ -309,6 +311,7 @@ details.cat-block .subs{padding:0 0 10px 48px}
   <header>
     <button class="icon-btn" id="sheetClose"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     <h3 id="sheetTitle">Nuevo movimiento</h3>
+    <button class="icon-btn" id="fVoz" title="Dictar"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
   </header>
   <div class="body" id="formBody"></div>
   <footer id="formFoot"></footer>
@@ -1658,24 +1661,44 @@ function interpretarVoz(texto){
     if(cat){ const tc=(D.cat.find(k=>k.nombre===cat)||{}).tipo; if(tc&&tc!=='Transferencia'&&tc!==t&&t==='Gasto') t=tc }
     if(!o){ o=masUsado(x=>x.t===t&&(!cat||x.c===cat),'o')||masUsado(x=>x.t===t,'o') }
   }
-  return {id:'',t,m:importeDeVoz(texto,n)??'',f:fechaDeVoz(n,hoy),c:t==='Transferencia'?'Transferencia':(cat||''),s:sub?sub.nombre:'',o,d,n:''};
+  const dicho={t:t!=='Gasto'||/\b(gaste|gasto|compre|pague)\b/.test(n), m:importeDeVoz(texto,n)!=null, f:fechaDeVoz(n,hoy)!==hoy, c:!!cat||t==='Transferencia', o:!!mets.length, d:!!d};
+  return {id:'',t,m:importeDeVoz(texto,n)??'',f:fechaDeVoz(n,hoy),c:t==='Transferencia'?'Transferencia':(cat||''),s:sub?sub.nombre:'',o,d,n:'',_dicho:dicho};
 }
-let VOZ=null;
+let VOZ=null, VOZ_T=null;
 function escucharVoz(){
   if(!RecVoz){ toast('Tu navegador no permite dictar aquí'); return }
   if(!navigator.onLine){ toast('Para dictar necesitas internet'); return }
-  const veil=$('#vozVeil'), txt=$('#vozTxt'); let final='';
-  txt.textContent=''; $('#vozEstado').textContent='Escuchando…'; veil.classList.add('on');
+  const veil=$('#vozVeil'), txt=$('#vozTxt'), est=$('#vozEstado'); let final='', fallo='';
+  const estado=(t,err)=>{ est.textContent=t; est.classList.toggle('gas',!!err) };
+  txt.textContent=''; estado('Preparando el micrófono…'); $('#vozCancel').textContent='Cancelar'; veil.classList.add('on'); veil.classList.remove('error');
   VOZ=new RecVoz(); VOZ.lang='es-MX'; VOZ.interimResults=true; VOZ.maxAlternatives=1; VOZ.continuous=false;
+  VOZ.onstart=()=>estado('Escuchando… habla ahora');
+  VOZ.onaudiostart=()=>estado('Escuchando… habla ahora');
+  VOZ.onspeechstart=()=>estado('Te escucho…');
+  VOZ.onspeechend=()=>estado('Procesando…');
   VOZ.onresult=e=>{ let inter=''; for(let i=e.resultIndex;i<e.results.length;i++){ const r=e.results[i]; if(r.isFinal) final+=r[0].transcript; else inter+=r[0].transcript } txt.textContent=(final+' '+inter).trim() };
-  VOZ.onerror=e=>{ const msg={'not-allowed':'Permite el micrófono para dictar','service-not-allowed':'Permite el micrófono para dictar','network':'Sin conexión para dictar','no-speech':'No te escuché, intenta de nuevo','audio-capture':'No encontré el micrófono'}[e.error]; if(msg) toast(msg); final=''; };
-  VOZ.onend=()=>{ veil.classList.remove('on'); VOZ=null; const t=final.trim(); if(!t) return;
-    const m=interpretarVoz(t); abrirForm(m); S.form._fab=true; S.form._voz=t; dibujarForm(); toast('Revisa y toca Guardar') };
-  try{ VOZ.start() }catch(e){ veil.classList.remove('on') }
+  VOZ.onnomatch=()=>{ fallo='No entendí lo que dijiste. Intenta de nuevo, más despacio.' };
+  VOZ.onerror=e=>{ fallo={'not-allowed':'Chrome no tiene permiso para el micrófono. Actívalo en Ajustes del teléfono → Aplicaciones → Chrome → Permisos → Micrófono, y en Chrome → Configuración → Configuración de sitios → Micrófono.',
+      'service-not-allowed':'El servicio de voz de Google no está disponible en este teléfono. Revisa que la app "Google" esté instalada y activada.',
+      'network':'No hay conexión con el servicio de voz de Google.','no-speech':'No escuché nada. Toca el micrófono y habla enseguida.',
+      'audio-capture':'No encontré el micrófono o lo está usando otra app.','language-not-supported':'El idioma español (México) no está disponible para dictar.'}[e.error]||('No se pudo dictar (código: '+e.error+')') };
+  VOZ.onend=()=>{ clearTimeout(VOZ_T); VOZ=null; const t=final.trim();
+    if(!t){ estado(fallo||'No escuché nada. Intenta de nuevo.',true); veil.classList.add('error'); $('#vozCancel').textContent='Cerrar'; return }
+    veil.classList.remove('on');
+    const m=interpretarVoz(t), k=m._dicho; delete m._dicho;
+    if($('#sheet').classList.contains('on')&&S.form){
+      const F=S.form;
+      if(k.t&&m.t!==F.t){ F.t=m.t; F.c=m.c; F.s=m.s; F.d='' }
+      if(k.m) F.m=m.m; if(k.f) F.f=m.f;
+      if(k.c){ F.c=m.c; F.s=m.s } if(k.o||k.c) F.o=m.o; if(k.d) F.d=m.d;
+      F._voz=t; dibujarForm(); toast('Revisa y toca Guardar'); return }
+    abrirForm(m); S.form._fab=true; S.form._voz=t; dibujarForm(); toast('Revisa y toca Guardar') };
+  VOZ_T=setTimeout(()=>{ if(VOZ){ try{VOZ.stop()}catch(e){} } },12000);   // por si se queda esperando
+  try{ VOZ.start() }catch(e){ estado('No se pudo iniciar el micrófono ('+(e.message||e)+')',true); $('#vozCancel').textContent='Cerrar' }
 }
-$('#vozCancel').onclick=()=>{ if(VOZ){ VOZ.onend=null; VOZ.abort(); VOZ=null } $('#vozVeil').classList.remove('on') };
-if(!RecVoz) $('#btnVoz').style.display='none';
-$('#btnVoz').onclick=escucharVoz;
+$('#vozCancel').onclick=()=>{ clearTimeout(VOZ_T); if(VOZ){ VOZ.onend=null; try{VOZ.abort()}catch(e){} VOZ=null } $('#vozVeil').classList.remove('on') };
+if(!RecVoz){ $('#btnVoz').style.display='none'; $('#fVoz').style.display='none' }
+$('#btnVoz').onclick=escucharVoz; $('#fVoz').onclick=escucharVoz;
 window.__voz=interpretarVoz;
 
 // acceso de solo lectura para pruebas
