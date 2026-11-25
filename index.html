@@ -232,7 +232,7 @@ body.compacta details.cat-block summary{padding:7px 0}
 svg.chart{width:100%;height:auto;stroke:none;fill:none;display:block;margin:4px 0}
 .col .stack{display:flex;flex-direction:column-reverse;width:60%;max-width:26px;border-radius:5px 5px 2px 2px;overflow:hidden;min-height:2px}
 .col .stack i{display:block;min-height:1px}
-.rtabs{margin:0 -16px 4px;padding:2px 16px 10px}
+.rtabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:3px;margin:0 0 12px;overflow:visible}.rtabs .chip{padding:9px 1px;border:0;background:none;border-radius:10px;text-align:center;min-width:0;font-size:min(calc(12.5px*var(--fs)),2.95vw);overflow:hidden;text-overflow:ellipsis;letter-spacing:-.2px}.rtabs .chip.on{background:var(--acc);color:var(--acc-ink)}
 .bud{padding:8px 0;cursor:pointer}
 .bud-top{display:flex;justify-content:space-between;gap:10px;font-size:calc(14px*var(--fs));margin-bottom:5px}
 .bud .bar-track{position:relative;height:10px;overflow:visible}
