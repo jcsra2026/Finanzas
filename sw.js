@@ -1,12 +1,12 @@
 // Mis Finanzas — abre al instante (y sin señal) con la copia guardada; busca actualizaciones en segundo plano.
-// Cambia VERSION cuando actualices index.html.
+// Cambia VERSION cuando actualices index.html. Siempre pregunta a GitHub si hay cambios (sin esperar su caché de 10 min).
 const VERSION = 'mf-v35';
 const FB = 'https://www.gstatic.com/firebasejs/12.11.0/';
 const ARCHIVOS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   FB + 'firebase-app.js', FB + 'firebase-auth.js', FB + 'firebase-firestore.js'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(ARCHIVOS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -20,7 +20,7 @@ self.addEventListener('fetch', e => {
   e.respondWith(caches.open(VERSION).then(async cache => {
     const guardado = await cache.match(req, { ignoreSearch: propio }) || (req.mode === 'navigate' ? await cache.match('./index.html') : null);
     if (guardado && firebase) return guardado;         // versión fija: no cambia nunca
-    const deRed = fetch(req).then(r => { if (r && r.ok) cache.put(req, r.clone()); return r; }).catch(() => null);
+    const deRed = fetch(req, propio ? { cache: 'no-cache' } : {}).then(r => { if (r && r.ok) cache.put(req, r.clone()); return r; }).catch(() => null);
     if (guardado) { e.waitUntil(deRed); return guardado; }
     return (await deRed) || new Response('Sin conexión', { status: 503 });
   }));
