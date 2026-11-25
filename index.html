@@ -170,6 +170,14 @@ textarea.field{height:70px;padding:10px 12px;resize:none}
 /* toast & loader */
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:calc(14px*var(--fs));opacity:0;transition:.25s;z-index:60;pointer-events:none;max-width:90%}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ventana de confirmación propia (reemplaza al confirm() del navegador) */
+.confirm-veil{position:fixed;inset:0;z-index:90;background:rgba(10,8,20,.55);display:none;align-items:center;justify-content:center;padding:24px}
+.confirm-veil.on{display:flex}
+.confirm-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;max-width:420px;width:100%}
+.confirm-msg{font-size:calc(16px*var(--fs));margin-bottom:18px}
+.confirm-btns{display:flex;gap:10px}
+.confirm-btns .btn{flex:1}
+
 .sync{height:3px;position:fixed;top:0;left:0;right:0;z-index:70;background:linear-gradient(90deg,transparent,var(--acc),transparent);background-size:50% 100%;animation:sl 1s linear infinite;display:none}
 .sync.on{display:block}
 @keyframes sl{from{background-position:-50% 0}to{background-position:150% 0}}
@@ -297,6 +305,8 @@ details.cat-block .subs{padding:0 0 10px 48px}
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="confirm-veil" id="confirmVeil"><div class="confirm-card"><div class="confirm-msg" id="confirmMsg"></div><div class="confirm-btns"><button class="btn sec" id="confirmNo">Cancelar</button><button class="btn dan" id="confirmSi">Sí, borrar</button></div></div></div>
+
 
 <script type="module">
 /* ============ Firebase ============ */
@@ -343,6 +353,22 @@ function mesAdd(ym,n){let [y,m]=ym.split('-').map(Number);m+=n;while(m<1){m+=12;
 function color(name){let h=0;for(const c of String(name))h=(h*31+c.charCodeAt(0))>>>0;return PALETA[h%PALETA.length]}
 function iniciales(s){return String(s||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2400)}
+/* Confirmación propia: muestra la ventana de la app y resuelve true/false
+   según el botón tocado. Reemplaza al confirm() del navegador. */
+function confirmar(msg, si, clase){
+  return new Promise(res=>{
+    const veil=$('#confirmVeil');
+    $('#confirmMsg').textContent=msg;
+    const bSi=$('#confirmSi'); bSi.textContent=si||'Sí, borrar'; bSi.className='btn '+(clase||'dan');
+    const bNo=$('#confirmNo');
+    const cerrar=v=>{ veil.classList.remove('on'); bSi.onclick=bNo.onclick=veil.onclick=null; res(v); };
+    bSi.onclick=()=>cerrar(true);
+    bNo.onclick=()=>cerrar(false);
+    veil.onclick=e=>{ if(e.target===veil) cerrar(false); };
+    veil.classList.add('on');
+  });
+}
+
 function syncing(on){$('#sync').classList.toggle('on',!!on)}
 /* Desplegable propio: ddHTML dibuja el botón + la lista, bindDD conecta
    la elección con onPick. La lista es HTML de la app, no la del navegador. */
@@ -821,7 +847,7 @@ function bindAlertas(el){
   el.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{const r=D.rec.find(x=>x.id===b.dataset.reg);if(!r)return;
     abrirForm({id:'',f:D.hoy||hoyLocal(),t:r.t,c:r.c,s:r.s,o:r.o,d:r.d,m:r.m,n:r.n,_rec:r.id})});
   el.querySelectorAll('[data-skip]').forEach(b=>b.onclick=async()=>{const r=D.rec.find(x=>x.id===b.dataset.skip);if(!r)return;
-    if(!confirm('¿Omitir "'+r.nombre+'" de '+fCorta(r.prox)+'? Pasará a la siguiente fecha.'))return;
+    if(!(await confirmar('¿Omitir "'+r.nombre+'" de '+fCorta(r.prox)+'? Pasará a la siguiente fecha.','Sí, omitir')))return;
     const sig=avanzar(r.prox,r.frec,r.dia); r.prox=sig; render(); syncing(true);
     try{await api('registrarRecurrente',r.id,null,sig);store.set(CACHE_KEY,D);toast('Siguiente: '+fCorta(sig))}catch(e){toast('Error: '+(e.message||e));await cargar(true)}
     syncing(false)});
@@ -857,7 +883,7 @@ function rMovs(){
   const ing=suma(f,'Ingreso'),gas=suma(f,'Gasto');
   const tags=[S.acc&&['acc','Cuenta: '+S.acc],S.cat&&['cat','Categoría: '+S.cat],S.sub&&['sub',S.sub]].filter(Boolean);
   el.innerHTML=monthBar()+`
-  <div class="search"><svg viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="q" placeholder="Buscar nota, categoría, importe…" value="${esc(S.q)}"></div>
+  <div class="search"><svg viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="q" placeholder="Buscar nota, categoría, importe…" value="${esc(S.q)}" autocomplete="off"></div>
   <div class="chips">${['','Gasto','Ingreso','Transferencia'].map(t=>`<button class="chip ${S.tipo===t?'on':''}" data-t="${t}">${t||'Todos'}</button>`).join('')}</div>
   ${tags.map(([k,l])=>`<span class="filter-tag">${esc(l)} <button data-x="${k}" style="color:inherit">✕</button></span>`).join('')}
   <div class="small muted" style="padding:2px 4px">${f.length} movimientos · <span class="ing">+${fmt(ing)}</span> · <span class="gas">-${fmt(gas)}</span></div>
@@ -1056,7 +1082,7 @@ function rPatrimonio(el){
 
 function formMeta(){
   $('#sheet2Title').textContent='Meta de ingreso pasivo';
-  $('#form2Body').innerHTML=`    <div class="lbl">Meta mensual</div><input class="field" id="mMeta" inputmode="decimal" placeholder="ej. 1500" value="${Number(D.cfg.meta_pasivo)||''}">`;
+  $('#form2Body').innerHTML=`    <div class="lbl">Meta mensual</div><input class="field" id="mMeta" inputmode="decimal" placeholder="ej. 1500" value="${Number(D.cfg.meta_pasivo)||''}" autocomplete="off">`;
   $('#form2Foot').innerHTML=`<button class="btn pri" id="mSave">Guardar meta</button>`;
   abrirModal('sheet2');
   $('#mSave').onclick=async()=>{const v=parseFloat(String($('#mMeta').value).replace(/[^0-9.]/g,''))||0;
@@ -1151,7 +1177,7 @@ function rAjustes(){
   el.querySelectorAll('[data-ns]').forEach(b=>b.onclick=()=>formCat('sub',{cat:b.dataset.ns}));
   el.querySelector('#nm').onclick=()=>formCat('met',{tipo:'Débito',inicial:0});
   el.querySelector('#exp').onclick=exportar;
-  el.querySelector('#cfgEd').onclick=async()=>{ if(!confirm('¿Cerrar sesión en este dispositivo?')) return; await fbSalir(); mostrarSetup(); };
+  el.querySelector('#cfgEd').onclick=async()=>{ if(!(await confirmar('¿Cerrar sesión en este dispositivo?','Cerrar sesión','pri'))) return; await fbSalir(); mostrarSetup(); };
   el.querySelector('#edPre').onclick=formPresupuestos;
   el.querySelectorAll('[data-ap-letra],[data-ap-dens]').forEach(b=>b.onclick=()=>{ if(b.dataset.apLetra) AP.letra=b.dataset.apLetra; if(b.dataset.apDens) AP.dens=b.dataset.apDens;
     store.set(AP_KEY,AP); aplicarApariencia(); const y=scrollY; rAjustes(); window.scrollTo(0,y) });
@@ -1188,12 +1214,12 @@ function formCat(tipo,o){
   if(tipo==='cat') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Gasto','Gasto'],['Ingreso','Ingreso']],CV.tipo)}`;
   if(tipo==='sub') campos+=`<div class="lbl">Categoría</div>${ddHTML('cCat',catsSub.map(n=>[n,n]),CV.cat)}`;
   if(tipo==='met') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Débito','Débito'],['Crédito','Crédito'],['Efectivo','Efectivo']],CV.tipo)}
-    <div class="lbl">Monto inicial</div><input class="field" id="cIni" inputmode="decimal" value="${o.inicial??0}"><div class="small muted" style="margin-top:6px">Tarjetas: la deuda inicial va en negativo</div>
+    <div class="lbl">Monto inicial</div><input class="field" id="cIni" inputmode="decimal" value="${o.inicial??0}" autocomplete="off"><div class="small muted" style="margin-top:6px">Tarjetas: la deuda inicial va en negativo</div>
     <div id="tarBox" style="display:${o.tipo==='Crédito'?'block':'none'}">${(()=>{const t=D.tar.find(x=>x.met===o.nombre)||{};return `
-      <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><input class="field" id="cCorte" inputmode="numeric" placeholder="ej. 15" value="${t.corte||''}"></div>
-      <div style="flex:1"><div class="lbl">Día límite de pago</div><input class="field" id="cPago" inputmode="numeric" placeholder="ej. 5" value="${t.pago||''}"></div></div>
-      <div class="row2" style="gap:10px"><div style="flex:1.4"><div class="lbl">Límite de crédito</div><input class="field" id="cLim" inputmode="decimal" placeholder="ej. 30000" value="${t.limite||''}"></div>
-      <div style="flex:1"><div class="lbl">Tope de uso (%)</div><input class="field" id="cAlerta" inputmode="numeric" placeholder="ej. 30" value="${t.alerta||''}"></div></div>
+      <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><input class="field" id="cCorte" inputmode="numeric" placeholder="ej. 15" value="${t.corte||''}" autocomplete="off"></div>
+      <div style="flex:1"><div class="lbl">Día límite de pago</div><input class="field" id="cPago" inputmode="numeric" placeholder="ej. 5" value="${t.pago||''}" autocomplete="off"></div></div>
+      <div class="row2" style="gap:10px"><div style="flex:1.4"><div class="lbl">Límite de crédito</div><input class="field" id="cLim" inputmode="decimal" placeholder="ej. 30000" value="${t.limite||''}" autocomplete="off"></div>
+      <div style="flex:1"><div class="lbl">Tope de uso (%)</div><input class="field" id="cAlerta" inputmode="numeric" placeholder="ej. 30" value="${t.alerta||''}" autocomplete="off"></div></div>
       <div class="small muted" id="cTopeTxt" style="margin-top:6px"></div>`})()}</div>`;
   if(!nuevo&&usados) campos+=`<p class="small muted" style="margin-top:16px">En ${usados} movimientos (se actualizan si cambias el nombre)</p>`;
   $('#form2Body').innerHTML=campos;
@@ -1225,7 +1251,7 @@ function formCat(tipo,o){
   };
   const del=$('#cDel'); if(del) del.onclick=async()=>{
     if(usados) return toast('No se puede borrar: está en uso');
-    if(!confirm('¿Borrar "'+o.nombre+'"?')) return;
+    if(!(await confirmar('¿Borrar "'+o.nombre+'"?'))) return;
     syncing(true);
     try{ await api('borrarCatalogo',tipo,o.id); cerrarModal('sheet2'); await cargar(true); toast('Borrado') }catch(e){ toast('Error: '+(e.message||e)) }
     syncing(false);
@@ -1241,7 +1267,7 @@ function formPresupuestos(){
   $('#form2Body').innerHTML=`<div class="row2" style="justify-content:space-between;margin-bottom:6px"><span class="small muted">Tu gasto promedio: <b>${fmt0(promTot)}</b>/mes</span><button class="btn sec" id="usarProm" style="flex:none;height:38px;padding:0 14px;font-size:calc(14px*var(--fs))">Usar promedios</button></div>
     <p class="small muted" style="margin:0 0 4px">Vacío = sin presupuesto</p>`+
     cats.map(c=>{const pr=D.pre.find(x=>x.cat===c);
-      return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(prom[c])}/mes</div></div><input class="field" data-pc="${esc(c)}" inputmode="decimal" placeholder="—" value="${pr?pr.monto:''}"></div>`}).join('');
+      return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(prom[c])}/mes</div></div><input class="field" data-pc="${esc(c)}" inputmode="decimal" placeholder="—" value="${pr?pr.monto:''}" autocomplete="off"></div>`}).join('');
   $('#form2Foot').innerHTML=`<div style="flex:1;display:flex;flex-direction:column;justify-content:center"><span class="small muted">Total</span><b class="num" id="pTot" style="font-size:calc(18px*var(--fs))"></b></div><button class="btn pri" id="pSave" style="flex:none">Guardar</button>`;
   abrirModal('sheet2');
   const leerMonto=i=>parseFloat(String(i.value).replace(/[^0-9.]/g,''))||0;
@@ -1266,16 +1292,16 @@ function formRec(r){
     const esT=R.t==='Transferencia', mets=D.met.map(x=>x.nombre);
     $('#sheet2Title').textContent=nuevo?'Nuevo recurrente':'Editar recurrente';
     $('#form2Body').innerHTML=`
-      <div class="lbl">Nombre</div><input class="field" id="rNom" placeholder="ej. Renta, Netflix, Mesada" value="${esc(R.nombre)}">
+      <div class="lbl">Nombre</div><input class="field" id="rNom" placeholder="ej. Renta, Netflix, Mesada" value="${esc(R.nombre)}" autocomplete="off">
       <div class="lbl">Tipo</div>${ddHTML('rTipo',[['Gasto','Gasto'],['Ingreso','Ingreso'],['Transferencia','Transferencia']],R.t)}
-      <div class="lbl">Importe</div><input class="field" id="rImp" inputmode="decimal" value="${R.m}">
+      <div class="lbl">Importe</div><input class="field" id="rImp" inputmode="decimal" value="${R.m}" autocomplete="off">
       ${esT?'':`<div class="lbl">Categoría</div>${ddHTML('rCat',catsDe(R.t).map(v=>[v,v]),R.c)}
       <div class="lbl">Subcategoría</div>${ddHTML('rSub',[['','(ninguna)'],...(R.c?subcatsDe(R.c):[]).map(v=>[v,v])],R.s)}`}
       <div class="lbl">${esT?'Desde':R.t==='Ingreso'?'Recibido en':'Pagado con'}</div>${ddHTML('rO',[['','Elige…'],...mets.map(v=>[v,v])],R.o)}
       ${esT?`<div class="lbl">Hacia</div>${ddHTML('rD',[['','Elige…'],...mets.map(v=>[v,v])],R.d)}`:''}
       <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Se repite</div>${ddHTML('rFrec',FRECS.map(v=>[v,v]),R.frec)}</div>
       <div style="flex:1"><div class="lbl">Próxima fecha</div><input type="date" class="field" id="rProx" value="${R.prox||''}"></div></div>
-      <div class="lbl">Nota</div><input class="field" id="rNota" value="${esc(R.n)}">
+      <div class="lbl">Nota</div><input class="field" id="rNota" value="${esc(R.n)}" autocomplete="off">
       <label class="set-item" style="margin-top:10px"><input type="checkbox" id="rAct" ${R.activo?'checked':''} style="width:20px;height:20px"><span class="mid">Activo</span></label>`;
     const leer=()=>{R.nombre=$('#rNom').value;R.m=$('#rImp').value;R.prox=$('#rProx').value;R.n=$('#rNota').value;R.activo=$('#rAct').checked};
     bindDD($('#form2Body'),'rTipo',v=>{leer();R.t=v;R.c=v==='Transferencia'?'Transferencia':'';R.s='';dibujar()});
@@ -1298,7 +1324,7 @@ function formRec(r){
       catch(e){toast('Error: '+(e.message||e));$('#rSave').disabled=false}
       syncing(false);
     };
-    const del=$('#rDel'); if(del) del.onclick=async()=>{ if(!confirm('¿Borrar el recurrente "'+R.nombre+'"? Los movimientos ya registrados no se borran.'))return;
+    const del=$('#rDel'); if(del) del.onclick=async()=>{ if(!(await confirmar('¿Borrar el recurrente "'+R.nombre+'"? Los movimientos ya registrados no se borran.')))return;
       syncing(true);try{await api('borrarCatalogo','rec',R.id);cerrarModal('sheet2');await cargar(true);toast('Borrado')}catch(e){toast('Error: '+(e.message||e))}syncing(false)};
   };
   dibujar(); abrirModal('sheet2');
@@ -1334,7 +1360,7 @@ function dibujarForm(focus){
     ${esT?`<div class="lbl">Hacia</div><div class="chips wrap">${chipsHTML(ordenarPorUso(mets.filter(x=>x!==F.o),usoD),F.d,'d')}</div>`:''}
     <div class="lbl">Fecha</div>
     <div class="row2"><div class="chips" style="padding:0"><button class="chip ${F.f===hoy?'on':''}" data-f="${hoy}">Hoy</button><button class="chip ${F.f===addDays(hoy,-1)?'on':''}" data-f="${addDays(hoy,-1)}">Ayer</button></div><input type="date" class="field" id="fFecha" value="${F.f}" style="flex:1"></div>
-    <div class="lbl">Nota</div><textarea class="field" id="fNota" placeholder="Opcional">${esc(F.n)}</textarea>
+    <div class="lbl">Nota</div><textarea class="field" id="fNota" placeholder="Opcional" autocomplete="off">${esc(F.n)}</textarea>
     ${F.id?'<button class="link-btn" id="fRep">↻ Convertir en recurrente</button>':''}`;
   $('#formFoot').innerHTML=F._rec?`<button class="btn pri" id="fSave">Registrar</button>`:F.id?`<button class="btn dan" id="fDel" aria-label="Borrar"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button><button class="btn sec" id="fDup">Duplicar</button><button class="btn pri" id="fSave">Guardar</button>`
     :`<button class="btn sec" id="fSaveNew">Guardar y otro</button><button class="btn pri" id="fSave">Guardar</button>`;
@@ -1356,7 +1382,7 @@ function dibujarForm(focus){
   body.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{F.d=b.dataset.d;dibujarForm()});
   body.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{F.f=b.dataset.f;dibujarForm()});
   const as=$('#addSub'); if(as) as.onclick=()=>{
-    $('#newSubBox').innerHTML=`<div class="inline-new"><input class="field" id="nsName" placeholder="Nueva subcategoría de ${esc(F.c)}"><button class="btn pri" style="flex:none" id="nsOk">Añadir</button></div>`;
+    $('#newSubBox').innerHTML=`<div class="inline-new"><input class="field" id="nsName" placeholder="Nueva subcategoría de ${esc(F.c)}" autocomplete="off"><button class="btn pri" style="flex:none" id="nsOk">Añadir</button></div>`;
     $('#nsName').focus();
     $('#nsOk').onclick=async()=>{const n=$('#nsName').value.trim();if(!n)return;
       syncing(true);try{const id=await api('guardarCatalogo','sub',{nombre:n,cat:F.c});D.sub.push({id,nombre:n,cat:F.c});F.s=n;dibujarForm();toast('Subcategoría creada')}catch(e){toast('Error: '+(e.message||e))}syncing(false)};
@@ -1395,7 +1421,7 @@ async function guardar(otro){
   syncing(false);
 }
 async function borrar(id){
-  if(!confirm('¿Borrar este movimiento?')) return;
+  if(!(await confirmar('¿Borrar este movimiento?'))) return;
   D.mov=D.mov.filter(x=>x.id!==id); cerrarForm(); render(); syncing(true);
   try{ await api('borrarMovimiento',id); store.set(CACHE_KEY,D); toast('Borrado') }
   catch(e){ if(esRed(e)){const q=cola();q.push({fn:'borrarMovimiento',args:[id]});store.set(QUEUE_KEY,q);toast('Se borrará al reconectar')} else {toast('Error: '+(e.message||e));await cargar(true)} }
