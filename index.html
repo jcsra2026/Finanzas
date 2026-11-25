@@ -142,6 +142,9 @@ nav.bottom .fab svg{width:28px;height:28px;stroke-width:2.4}
 .amount span{font-size:calc(30px*var(--fs));color:var(--muted);font-weight:600}
 .amount input,.amount .imp{font-size:calc(44px*var(--fs));font-weight:700;border:0;background:none;outline:none;width:100%;max-width:230px;text-align:left;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;line-height:1.25;cursor:text}
 .ce:empty::before{content:attr(data-ph);color:var(--muted);opacity:.75;pointer-events:none}
+.field.ce:not(.nota){line-height:44px;white-space:nowrap;overflow:hidden;cursor:text}
+.search .ce{flex:1;height:44px;line-height:44px;white-space:nowrap;overflow:hidden;outline:none;cursor:text}
+.pre-row .ce{width:120px;flex:none;text-align:right}
 .field.nota{height:auto;min-height:70px;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;cursor:text;line-height:1.4}
 .lbl{font-size:calc(12px*var(--fs));font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px}
 .field{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:0 12px;outline:none}
@@ -191,6 +194,14 @@ textarea.field{height:70px;padding:10px 12px;resize:none}
 @keyframes sl{from{background-position:-50% 0}to{background-position:150% 0}}
 .loading{display:grid;place-items:center;height:60vh;color:var(--muted)}
 .set-group{margin-bottom:6px}
+#vozVeil.on{display:flex}
+.voz-card{text-align:center}
+.voz-mic{width:72px;height:72px;border-radius:50%;margin:4px auto 14px;display:grid;place-items:center;background:var(--acc);color:var(--acc-ink);animation:vozpulso 1.4s ease-in-out infinite}
+.voz-mic svg{width:34px;height:34px;stroke-width:2.2}
+@keyframes vozpulso{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 55%,transparent)}50%{box-shadow:0 0 0 16px color-mix(in srgb,var(--acc) 0%,transparent)}}
+.voz-txt{min-height:24px;font-size:calc(16px*var(--fs));color:var(--ink);font-style:italic}
+.voz-banner{display:flex;gap:8px;align-items:flex-start;background:var(--acc-soft);color:var(--acc);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:calc(14px*var(--fs))}
+.voz-banner svg{width:18px;height:18px;flex:none;margin-top:1px}
 body.compacta .card{padding:12px 14px;margin-bottom:9px}
 body.compacta .month{margin-bottom:9px}
 body.compacta .hero{gap:6px}
@@ -263,6 +274,7 @@ details.cat-block .subs{padding:0 0 10px 48px}
 <div class="app">
   <header class="top">
     <h1 id="title">Inicio</h1>
+    <button class="icon-btn" id="btnVoz" title="Dictar un movimiento"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <button class="icon-btn" id="btnRefresh" title="Actualizar"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></button>
     <button class="icon-btn" id="btnAjustes" title="Ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
@@ -313,6 +325,11 @@ details.cat-block .subs{padding:0 0 10px 48px}
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="confirm-veil" id="vozVeil"><div class="confirm-card voz-card"><div class="voz-mic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+  <div class="confirm-msg" id="vozEstado" style="text-align:center;margin-bottom:8px">Escuchando…</div>
+  <div class="voz-txt" id="vozTxt"></div>
+  <div class="small muted" style="text-align:center;margin:10px 0 16px">Ej.: «Gasté 250 en Chedraui con la BBVA oro»</div>
+  <button class="btn sec" id="vozCancel" style="width:100%">Cancelar</button></div></div>
 <div class="confirm-veil" id="confirmVeil"><div class="confirm-card"><div class="confirm-msg" id="confirmMsg"></div><div class="confirm-btns"><button class="btn sec" id="confirmNo">Cancelar</button><button class="btn dan" id="confirmSi">Sí, borrar</button></div></div></div>
 
 
@@ -972,7 +989,7 @@ function rMovs(){
   const ing=suma(f,'Ingreso'),gas=suma(f,'Gasto');
   const tags=[S.acc&&['acc','Cuenta: '+S.acc],S.cat&&['cat','Categoría: '+S.cat],S.sub&&['sub',S.sub]].filter(Boolean);
   el.innerHTML=monthBar()+`
-  <div class="search"><svg viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="q" placeholder="Buscar nota, categoría, importe…" value="${esc(S.q)}" autocomplete="off"></div>
+  <div class="search"><svg viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><div class="ce" contenteditable="true" role="textbox" data-ce id="q" enterkeyhint="done" data-ph="Buscar nota, categoría, importe…">${esc(S.q)}</div></div>
   <div class="chips">${['','Gasto','Ingreso','Transferencia'].map(t=>`<button class="chip ${S.tipo===t?'on':''}" data-t="${t}">${t||'Todos'}</button>`).join('')}</div>
   ${tags.map(([k,l])=>`<span class="filter-tag">${esc(l)} <button data-x="${k}" style="color:inherit">✕</button></span>`).join('')}
   <div class="small muted" style="padding:2px 4px">${f.length} movimientos · <span class="ing">+${fmt(ing)}</span> · <span class="gas">-${fmt(gas)}</span></div>
@@ -980,7 +997,7 @@ function rMovs(){
     const d=new Date(fe+'T12:00:00'); const neto=suma(arr,'Ingreso')-suma(arr,'Gasto');
     return `<div class="day"><span>${diaTexto(fe)}</span><span class="num">${neto?fmt(neto):''}</span></div><div class="items">${arr.map(itemHTML).join('')}</div>`}).join(''):'<div class="empty">No hay movimientos con estos filtros.</div>'}`;
   bindMonth(el); bindItems(el);
-  const qi=el.querySelector('#q'); qi.oninput=()=>{S.q=qi.value;clearTimeout(qi._t);qi._t=setTimeout(()=>{rMovs();const n=$('#q');n.focus();n.setSelectionRange(n.value.length,n.value.length)},250)};
+  const qi=el.querySelector('#q'); qi.oninput=()=>{S.q=qi.value;clearTimeout(qi._t);qi._t=setTimeout(()=>{rMovs();const n=$('#q');n.focus();cursorAlFinal(n)},250)};
   el.querySelectorAll('.chip[data-t]').forEach(c=>c.onclick=()=>{S.tipo=c.dataset.t;rMovs()});
   el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{const k=b.dataset.x;if(k==='cat'){S.cat='';S.sub=''}else S[k]='';rMovs()});
 }
@@ -1171,7 +1188,7 @@ function rPatrimonio(el){
 
 function formMeta(){
   $('#sheet2Title').textContent='Meta de ingreso pasivo';
-  $('#form2Body').innerHTML=`    <div class="lbl">Meta mensual</div><input class="field" id="mMeta" inputmode="decimal" placeholder="ej. 1500" value="${Number(D.cfg.meta_pasivo)||''}" autocomplete="off">`;
+  $('#form2Body').innerHTML=`    <div class="lbl">Meta mensual</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="mMeta" inputmode="decimal" data-num="decimal" enterkeyhint="done" data-ph="ej. 1500">${Number(D.cfg.meta_pasivo)||''}</div>`;
   $('#form2Foot').innerHTML=`<button class="btn pri" id="mSave">Guardar meta</button>`;
   abrirModal('sheet2');
   $('#mSave').onclick=async()=>{const v=parseFloat(String($('#mMeta').value).replace(/[^0-9.]/g,''))||0;
@@ -1299,16 +1316,16 @@ function formCat(tipo,o){
   if(!CV.cat) CV.cat=catsSub[0]||'';
   const usados=tipo==='cat'?D.mov.filter(x=>x.c===o.nombre).length:tipo==='sub'?D.mov.filter(x=>x.c===o.cat&&x.s===o.nombre).length:D.mov.filter(x=>x.o===o.nombre||x.d===o.nombre).length;
   $('#sheet2Title').textContent=(nuevo?'Nueva ':'Editar ')+({cat:'categoría',sub:'subcategoría',met:'cuenta / método'})[tipo];
-  let campos=`<div class="lbl">Nombre</div><input class="field" id="cNombre" value="${esc(o.nombre||'')}" autocomplete="off">`;
+  let campos=`<div class="lbl">Nombre</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cNombre" enterkeyhint="done">${esc(o.nombre||'')}</div>`;
   if(tipo==='cat') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Gasto','Gasto'],['Ingreso','Ingreso']],CV.tipo)}`;
   if(tipo==='sub') campos+=`<div class="lbl">Categoría</div>${ddHTML('cCat',catsSub.map(n=>[n,n]),CV.cat)}`;
   if(tipo==='met') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Débito','Débito'],['Crédito','Crédito'],['Efectivo','Efectivo']],CV.tipo)}
-    <div class="lbl">Monto inicial</div><input class="field" id="cIni" inputmode="decimal" value="${o.inicial??0}" autocomplete="off"><div class="small muted" style="margin-top:6px">Tarjetas: la deuda inicial va en negativo</div>
+    <div class="lbl">Monto inicial</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cIni" inputmode="decimal" data-num="signed" enterkeyhint="done">${o.inicial??0}</div><div class="small muted" style="margin-top:6px">Tarjetas: la deuda inicial va en negativo</div>
     <div id="tarBox" style="display:${o.tipo==='Crédito'?'block':'none'}">${(()=>{const t=D.tar.find(x=>x.met===o.nombre)||{};return `
-      <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><input class="field" id="cCorte" inputmode="numeric" placeholder="ej. 15" value="${t.corte||''}" autocomplete="off"></div>
-      <div style="flex:1"><div class="lbl">Día límite de pago</div><input class="field" id="cPago" inputmode="numeric" placeholder="ej. 5" value="${t.pago||''}" autocomplete="off"></div></div>
-      <div class="row2" style="gap:10px"><div style="flex:1.4"><div class="lbl">Límite de crédito</div><input class="field" id="cLim" inputmode="decimal" placeholder="ej. 30000" value="${t.limite||''}" autocomplete="off"></div>
-      <div style="flex:1"><div class="lbl">Tope de uso (%)</div><input class="field" id="cAlerta" inputmode="numeric" placeholder="ej. 30" value="${t.alerta||''}" autocomplete="off"></div></div>
+      <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cCorte" inputmode="numeric" data-num="numeric" enterkeyhint="done" data-ph="ej. 15">${t.corte||''}</div></div>
+      <div style="flex:1"><div class="lbl">Día límite de pago</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cPago" inputmode="numeric" data-num="numeric" enterkeyhint="done" data-ph="ej. 5">${t.pago||''}</div></div></div>
+      <div class="row2" style="gap:10px"><div style="flex:1.4"><div class="lbl">Límite de crédito</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cLim" inputmode="decimal" data-num="decimal" enterkeyhint="done" data-ph="ej. 30000">${t.limite||''}</div></div>
+      <div style="flex:1"><div class="lbl">Tope de uso (%)</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cAlerta" inputmode="numeric" data-num="numeric" enterkeyhint="done" data-ph="ej. 30">${t.alerta||''}</div></div></div>
       <div class="small muted" id="cTopeTxt" style="margin-top:6px"></div>`})()}</div>`;
   if(!nuevo&&usados) campos+=`<p class="small muted" style="margin-top:16px">En ${usados} movimientos (se actualizan si cambias el nombre)</p>`;
   $('#form2Body').innerHTML=campos;
@@ -1356,7 +1373,7 @@ function formPresupuestos(){
   $('#form2Body').innerHTML=`<div class="row2" style="justify-content:space-between;margin-bottom:6px"><span class="small muted">Tu gasto promedio: <b>${fmt0(promTot)}</b>/mes</span><button class="btn sec" id="usarProm" style="flex:none;height:38px;padding:0 14px;font-size:calc(14px*var(--fs))">Usar promedios</button></div>
     <p class="small muted" style="margin:0 0 4px">Vacío = sin presupuesto</p>`+
     cats.map(c=>{const pr=D.pre.find(x=>x.cat===c);
-      return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(prom[c])}/mes</div></div><input class="field" data-pc="${esc(c)}" inputmode="decimal" placeholder="—" value="${pr?pr.monto:''}" autocomplete="off"></div>`}).join('');
+      return `<div class="pre-row"><div class="mid"><div style="font-weight:600">${esc(c)}</div><div class="small muted">Promedio ${fmt0(prom[c])}/mes</div></div><div class="field ce" contenteditable="true" role="textbox" data-ce data-pc="${esc(c)}" inputmode="decimal" data-num="decimal" enterkeyhint="done" data-ph="—">${pr?pr.monto:''}</div></div>`}).join('');
   $('#form2Foot').innerHTML=`<div style="flex:1;display:flex;flex-direction:column;justify-content:center"><span class="small muted">Total</span><b class="num" id="pTot" style="font-size:calc(18px*var(--fs))"></b></div><button class="btn pri" id="pSave" style="flex:none">Guardar</button>`;
   abrirModal('sheet2');
   const leerMonto=i=>parseFloat(String(i.value).replace(/[^0-9.]/g,''))||0;
@@ -1381,16 +1398,16 @@ function formRec(r){
     const esT=R.t==='Transferencia', mets=D.met.map(x=>x.nombre);
     $('#sheet2Title').textContent=nuevo?'Nuevo recurrente':'Editar recurrente';
     $('#form2Body').innerHTML=`
-      <div class="lbl">Nombre</div><input class="field" id="rNom" placeholder="ej. Renta, Netflix, Mesada" value="${esc(R.nombre)}" autocomplete="off">
+      <div class="lbl">Nombre</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="rNom" enterkeyhint="done" data-ph="ej. Renta, Netflix, Mesada">${esc(R.nombre)}</div>
       <div class="lbl">Tipo</div>${ddHTML('rTipo',[['Gasto','Gasto'],['Ingreso','Ingreso'],['Transferencia','Transferencia']],R.t)}
-      <div class="lbl">Importe</div><input class="field" id="rImp" inputmode="decimal" value="${R.m}" autocomplete="off">
+      <div class="lbl">Importe</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="rImp" inputmode="decimal" data-num="decimal" enterkeyhint="done">${R.m}</div>
       ${esT?'':`<div class="lbl">Categoría</div>${ddHTML('rCat',catsDe(R.t).map(v=>[v,v]),R.c)}
       <div class="lbl">Subcategoría</div>${ddHTML('rSub',[['','(ninguna)'],...(R.c?subcatsDe(R.c):[]).map(v=>[v,v])],R.s)}`}
       <div class="lbl">${esT?'Desde':R.t==='Ingreso'?'Recibido en':'Pagado con'}</div>${ddHTML('rO',[['','Elige…'],...mets.map(v=>[v,v])],R.o)}
       ${esT?`<div class="lbl">Hacia</div>${ddHTML('rD',[['','Elige…'],...mets.map(v=>[v,v])],R.d)}`:''}
       <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Se repite</div>${ddHTML('rFrec',FRECS.map(v=>[v,v]),R.frec)}</div>
       <div style="flex:1"><div class="lbl">Próxima fecha</div><input type="date" class="field" id="rProx" value="${R.prox||''}"></div></div>
-      <div class="lbl">Nota</div><input class="field" id="rNota" value="${esc(R.n)}" autocomplete="off">
+      <div class="lbl">Nota</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="rNota" enterkeyhint="done">${esc(R.n)}</div>
       <label class="set-item" style="margin-top:10px"><input type="checkbox" id="rAct" ${R.activo?'checked':''} style="width:20px;height:20px"><span class="mid">Activo</span></label>`;
     const leer=()=>{R.nombre=$('#rNom').value;R.m=$('#rImp').value;R.prox=$('#rProx').value;R.n=$('#rNota').value;R.activo=$('#rAct').checked};
     bindDD($('#form2Body'),'rTipo',v=>{leer();R.t=v;R.c=v==='Transferencia'?'Transferencia':'';R.s='';dibujar()});
@@ -1430,6 +1447,23 @@ function abrirForm(m){
 function cerrarForm(){cerrarModal('sheet')}
 $('#sheetClose').onclick=cerrarForm;
 
+/* Campos editables (data-ce): se comportan como <input> (tienen .value) pero Chrome no les pone su barra de autocompletar */
+function limpiarNumero(t,modo){ if(modo==='numeric') return String(t).replace(/[^0-9]/g,''); if(modo==='signed'){ const neg=/^\s*-/.test(t); return (neg?'-':'')+limpiarImporte(t) } return limpiarImporte(t) }
+function activarCampos(root){
+  (root||document).querySelectorAll('[data-ce]:not([data-ce-ok])').forEach(el=>{
+    el.setAttribute('data-ce-ok','');
+    Object.defineProperty(el,'value',{configurable:true,
+      get(){ const t=el.innerText.replace(/\n+$/,''); return el.dataset.num?limpiarNumero(t,el.dataset.num):t },
+      set(v){ el.textContent=v==null?'':String(v) }});
+    el.addEventListener('input',()=>{
+      if(!el.innerText.trim()&&el.innerHTML!==''){ el.innerHTML='' }
+      if(el.dataset.num){ const t=el.textContent, l=limpiarNumero(t,el.dataset.num); if(l!==t){ el.textContent=l; cursorAlFinal(el) } }
+    },true);
+    el.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!el.classList.contains('nota')){ e.preventDefault(); el.blur() } });
+    el.addEventListener('paste',e=>{ e.preventDefault(); document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text')) });
+  });
+}
+new MutationObserver(()=>activarCampos()).observe(document.documentElement,{childList:true,subtree:true});
 function limpiarImporte(t){ // solo números y un punto decimal (la coma cuenta como punto), máximo 2 decimales
   t=String(t).replace(/,/g,'.').replace(/[^0-9.]/g,''); const i=t.indexOf('.');
   if(i>=0) t=t.slice(0,i+1)+t.slice(i+1).replace(/\./g,'').slice(0,2);
@@ -1446,7 +1480,7 @@ function dibujarForm(focus){
   const mets=D.met.map(x=>x.nombre);
   const usoO=uso(x=>x.t===F.t,'o'); const usoD=uso(x=>x.t==='Transferencia','d');
   const lblO=esT?'Desde':F.t==='Ingreso'?'Recibido en':'Pagado con';
-  $('#formBody').innerHTML=`
+  $('#formBody').innerHTML=(F._voz?`<div class="voz-banner"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>«${esc(F._voz)}»</span></div>`:'')+`
     <div class="seg">${['Gasto','Ingreso','Transferencia'].map(t=>`<button data-t="${t}" class="${F.t===t?'on':''}">${t}</button>`).join('')}</div>
     <div class="amount"><span>$</span><div id="fImp" class="ce imp" contenteditable="true" role="textbox" inputmode="decimal" enterkeyhint="done" data-ph="0.00">${esc(F.m===''?'':F.m)}</div></div>
     ${esT?'':`<div class="lbl">Categoría</div><div class="chips wrap">${chipsHTML(cats,F.c,'c')}</div>
@@ -1482,7 +1516,7 @@ function dibujarForm(focus){
   body.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{F.d=b.dataset.d;dibujarForm()});
   body.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{F.f=b.dataset.f;dibujarForm()});
   const as=$('#addSub'); if(as) as.onclick=()=>{
-    $('#newSubBox').innerHTML=`<div class="inline-new"><input class="field" id="nsName" placeholder="Nueva subcategoría de ${esc(F.c)}" autocomplete="off"><button class="btn pri" style="flex:none" id="nsOk">Añadir</button></div>`;
+    $('#newSubBox').innerHTML=`<div class="inline-new"><div class="field ce" contenteditable="true" role="textbox" data-ce id="nsName" enterkeyhint="done" data-ph="Nueva subcategoría de ${esc(F.c)}"></div><button class="btn pri" style="flex:none" id="nsOk">Añadir</button></div>`;
     $('#nsName').focus();
     $('#nsOk').onclick=async()=>{const n=$('#nsName').value.trim();if(!n)return;
       syncing(true);try{const id=await api('guardarCatalogo','sub',{nombre:n,cat:F.c});D.sub.push({id,nombre:n,cat:F.c});F.s=n;dibujarForm();toast('Subcategoría creada')}catch(e){toast('Error: '+(e.message||e))}syncing(false)};
@@ -1532,7 +1566,7 @@ async function borrar(id){
 function mostrarSetup(msg){
   $('#loading').style.display='none'; S.view='setup';
   document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-setup'));
-  $('#title').textContent='Bienvenido'; $('nav.bottom').style.display='none'; $('#btnRefresh').style.display=$('#btnAjustes').style.display='none';
+  $('#title').textContent='Bienvenido'; $('nav.bottom').style.display='none'; $('#btnVoz').style.display=$('#btnRefresh').style.display=$('#btnAjustes').style.display='none';
   $('#sMsg').textContent=msg||'';
 }
 $('#sOk').onclick=async()=>{
@@ -1541,12 +1575,108 @@ $('#sOk').onclick=async()=>{
     await fbEntrar();
     D={mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:hoyLocal()}; normalizar(); store.set(CACHE_KEY,null);
     await cargar(true);
-    $('nav.bottom').style.display=''; $('#btnRefresh').style.display=$('#btnAjustes').style.display=''; S.view='inicio'; ir('inicio'); toast('¡Conectado!')
+    $('nav.bottom').style.display=''; $('#btnVoz').style.display=$('#btnRefresh').style.display=$('#btnAjustes').style.display=''; S.view='inicio'; ir('inicio'); toast('¡Conectado!')
   }
   catch(e){ $('#sMsg').textContent='No se pudo entrar: '+(e.message||e) }
   $('#sOk').disabled=false;
 };
 if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+/* ============ captura por voz ============
+   Tocas el micrófono, dices p. ej. "Gasté 250 en Chedraui con la BBVA oro" y se abre el
+   formulario ya llenado para que lo revises y guardes. Usa el reconocimiento de voz de Chrome (necesita internet). */
+const RecVoz=window.SpeechRecognition||window.webkitSpeechRecognition;
+const sinAcentos=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const NUM_PAL={cero:0,un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,
+  veinte:20,veintiuno:21,veintiun:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,
+  cien:100,ciento:100,doscientos:200,doscientas:200,trescientos:300,trescientas:300,cuatrocientos:400,cuatrocientas:400,quinientos:500,quinientas:500,seiscientos:600,seiscientas:600,setecientos:700,setecientas:700,ochocientos:800,ochocientas:800,novecientos:900,novecientas:900};
+function numeroEnPalabras(n){ // "dos mil quinientos cincuenta" -> 2550 (si el reconocimiento no puso dígitos)
+  const ps=n.split(/\s+/); let mejor=null;
+  for(let i=0;i<ps.length;i++){
+    if(!(ps[i] in NUM_PAL)&&ps[i]!=='mil') continue;
+    let total=0,parcial=0,usados=0;
+    for(let j=i;j<ps.length;j++){ const w=ps[j];
+      if(w==='y'&&usados) continue;
+      if(w in NUM_PAL){ parcial+=NUM_PAL[w]; usados++ } else if(w==='mil'){ total+=(parcial||1)*1000; parcial=0; usados++ } else break; }
+    const v=total+parcial; if(usados&&v>0&&(mejor===null||v>mejor)) mejor=v;
+  }
+  return mejor;
+}
+function fechaDeVoz(n,hoy){
+  if(/\b(anteayer|antier)\b/.test(n)) return addDays(hoy,-2);
+  if(/\bayer\b/.test(n)) return addDays(hoy,-1);
+  const dias=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const md=n.match(/\b(?:el |este |el pasado )?(domingo|lunes|martes|miercoles|jueves|viernes|sabado)\b/);
+  if(md){ const p=partes(hoy), d=new Date(p[0],p[1]-1,p[2]).getDay(); let k=(d-dias.indexOf(md[1])+7)%7; return addDays(hoy,-k) }
+  const mf=n.match(/\bel (\d{1,2})(?: de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/);
+  if(mf){ const p=partes(hoy); let mes=mf[2]?MESES.map(sinAcentos).indexOf(mf[2])+1:p[1], y=p[0]; let f=fecha(y,mes,+mf[1]); if(f>hoy) f=mf[2]?fecha(y-1,mes,+mf[1]):fecha(y,mes-1,+mf[1]); return f }
+  return hoy;
+}
+function importeDeVoz(texto,n){
+  let t=String(texto).replace(/\bel \d{1,2}( de [a-záéíóú]+)?\b/gi,' ');           // no confundir el día con el importe
+  const m=t.match(/\$?\s*(\d{1,3}(?:[,\s]\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)/);
+  let v=null;
+  if(m){ let s=m[1]; if(/^\d{1,3}([,\s]\d{3})+/.test(s)) s=s.replace(/[,\s]/g,''); else s=s.replace(',','.'); v=parseFloat(s) }
+  if(v===null) v=numeroEnPalabras(n.replace(/\bel (\w+) de \w+\b/,' '));
+  const c=n.match(/\bcon (\d{1,2}) centavos\b/); if(v!==null&&c) v=Math.floor(v)+(+c[1])/100;
+  return v;
+}
+function interpretarVoz(texto){
+  const hoy=D.hoy||hoyLocal(), n=' '+sinAcentos(texto).replace(/[.,;:!?¿¡]/g,' ').replace(/\s+/g,' ')+' ';
+  let t='Gasto';
+  if(/\b(me pagaron|me depositaron|me deposito|me dieron|me regalaron|me cayo|me llego|recibi|cobre|ingreso de|nomina|sueldo|quincena)\b/.test(n)) t='Ingreso';
+  if(/\b(transferi|transferencia|pase|traspase|traspaso|movi|abone|pague (?:la |mi )?(?:tarjeta|tdc)|pago (?:de|a) (?:la )?(?:tarjeta|tdc))\b/.test(n)) t='Transferencia';
+  // menciones de tus nombres (el más largo gana)
+  const cands=[];
+  const agregar=(frase,tipo,val,exacto)=>{ const f=sinAcentos(frase).trim(); if(f.length<2) return;
+    const re=new RegExp('(?<=\\s)'+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?=\\s)','g'); let m; while((m=re.exec(n))) cands.push({tipo,val,ini:m.index,fin:m.index+f.length,largo:f.length+(exacto?0.5:0)}) };
+  D.met.forEach(x=>{ agregar(x.nombre,'met',x.nombre,true); const r=x.nombre.replace(/^TDC\s+/i,''); if(r!==x.nombre){ agregar(r,'met',x.nombre,false); agregar('tarjeta '+r,'met',x.nombre,true); agregar('tdc '+r,'met',x.nombre,true) } });
+  D.sub.forEach(x=>{ if(!/^otros?$/i.test(x.nombre)) agregar(x.nombre,'sub',x,true) });
+  D.cat.forEach(x=>{ if(x.tipo!=='Transferencia') agregar(x.nombre,'cat',x,true) });
+  cands.sort((a,b)=>b.largo-a.largo);
+  const ocupado=[], usar=[];
+  cands.forEach(c=>{ const choca=ocupado.some(o=>c.ini<o.fin&&o.ini<c.fin&&!(o.ini===c.ini&&o.fin===c.fin)); if(!choca){ usar.push(c); if(!ocupado.some(o=>o.ini===c.ini&&o.fin===c.fin)) ocupado.push(c) } });
+  const antes=c=>n.slice(Math.max(0,c.ini-16),c.ini);
+  const CUE_MET=/(con|con la|con el|con mi|con mis|usando|pague con|desde|de la|de mi|del)\s$/, CUE_DEST=/(\ba|al|a la|a mi|hacia|para|para la|pague la|pague mi|pague)\s$/, CUE_LUGAR=/(en|en el|en la|en los|de|del)\s$/;
+  const mets=usar.filter(c=>c.tipo==='met'), subs=usar.filter(c=>c.tipo==='sub'), catsM=usar.filter(c=>c.tipo==='cat');
+  const mismaPos=(a,b)=>a.ini===b.ini&&a.fin===b.fin;
+  let o='',d='',sub=null,cat=null;
+  if(t==='Transferencia'){
+    const dest=mets.find(c=>CUE_DEST.test(antes(c))), ori=mets.find(c=>c!==dest&&CUE_MET.test(antes(c)));
+    d=dest?dest.val:''; o=ori?ori.val:'';
+    const libres=mets.filter(c=>c!==dest&&c!==ori&&c.val!==d&&c.val!==o);
+    if(!o&&libres.length) o=libres.shift().val; if(!d&&libres.length) d=libres.shift().val;
+  }else{
+    // método: con pista "con ..."; si el mismo nombre es lugar ("en Costco"), es subcategoría
+    let m=mets.find(c=>CUE_MET.test(antes(c)))||mets.find(c=>!subs.some(s=>mismaPos(s,c)));
+    if(!m&&t==='Ingreso') m=mets[0];
+    o=m?m.val:'';
+    const s=subs.filter(c=>!(m&&mismaPos(c,m))&&D.cat.some(k=>k.nombre===c.val.cat&&k.tipo===t)).concat(subs.filter(c=>!(m&&mismaPos(c,m))));
+    if(s.length){ const opciones=D.sub.filter(x=>sinAcentos(x.nombre)===sinAcentos(s[0].val.nombre)); const u=uso(x=>true,'c',365);
+      sub=opciones.sort((a,b)=>(u[b.cat]||0)-(u[a.cat]||0))[0]; cat=sub.cat }
+    if(!cat){ const k=catsM.find(c=>c.val.tipo===t)||catsM[0]; if(k){ cat=k.val.nombre; if(k.val.tipo!==t&&t==='Gasto') t=k.val.tipo } }
+    if(cat){ const tc=(D.cat.find(k=>k.nombre===cat)||{}).tipo; if(tc&&tc!=='Transferencia'&&tc!==t&&t==='Gasto') t=tc }
+    if(!o){ o=masUsado(x=>x.t===t&&(!cat||x.c===cat),'o')||masUsado(x=>x.t===t,'o') }
+  }
+  return {id:'',t,m:importeDeVoz(texto,n)??'',f:fechaDeVoz(n,hoy),c:t==='Transferencia'?'Transferencia':(cat||''),s:sub?sub.nombre:'',o,d,n:''};
+}
+let VOZ=null;
+function escucharVoz(){
+  if(!RecVoz){ toast('Tu navegador no permite dictar aquí'); return }
+  if(!navigator.onLine){ toast('Para dictar necesitas internet'); return }
+  const veil=$('#vozVeil'), txt=$('#vozTxt'); let final='';
+  txt.textContent=''; $('#vozEstado').textContent='Escuchando…'; veil.classList.add('on');
+  VOZ=new RecVoz(); VOZ.lang='es-MX'; VOZ.interimResults=true; VOZ.maxAlternatives=1; VOZ.continuous=false;
+  VOZ.onresult=e=>{ let inter=''; for(let i=e.resultIndex;i<e.results.length;i++){ const r=e.results[i]; if(r.isFinal) final+=r[0].transcript; else inter+=r[0].transcript } txt.textContent=(final+' '+inter).trim() };
+  VOZ.onerror=e=>{ const msg={'not-allowed':'Permite el micrófono para dictar','service-not-allowed':'Permite el micrófono para dictar','network':'Sin conexión para dictar','no-speech':'No te escuché, intenta de nuevo','audio-capture':'No encontré el micrófono'}[e.error]; if(msg) toast(msg); final=''; };
+  VOZ.onend=()=>{ veil.classList.remove('on'); VOZ=null; const t=final.trim(); if(!t) return;
+    const m=interpretarVoz(t); abrirForm(m); S.form._fab=true; S.form._voz=t; dibujarForm(); toast('Revisa y toca Guardar') };
+  try{ VOZ.start() }catch(e){ veil.classList.remove('on') }
+}
+$('#vozCancel').onclick=()=>{ if(VOZ){ VOZ.onend=null; VOZ.abort(); VOZ=null } $('#vozVeil').classList.remove('on') };
+if(!RecVoz) $('#btnVoz').style.display='none';
+$('#btnVoz').onclick=escucharVoz;
+window.__voz=interpretarVoz;
 
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
