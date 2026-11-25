@@ -223,6 +223,7 @@ body.compacta details.cat-block summary{padding:7px 0}
 .ub-top span{font-size:calc(13px*var(--fs));font-weight:600;min-width:38px;text-align:right}
 .ub-bot{display:flex;justify-content:space-between;font-size:calc(13px*var(--fs));color:var(--muted);margin-top:4px}
 .acc-row.cc{flex-wrap:wrap;row-gap:0}
+.candado{position:fixed;inset:0;z-index:300;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}.candado.on{display:flex}.candado img{width:84px;height:84px;border-radius:22px}.candado .cand-t{font-size:calc(22px*var(--fs));font-weight:700;margin-bottom:10px}.candado .btn{flex:none;min-width:220px}
 .sw{position:relative;width:44px;height:26px;flex:none;display:inline-block}
 .sw input{opacity:0;width:0;height:0;position:absolute}
 .sw span{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:.2s}
@@ -333,6 +334,8 @@ details.cat-block .subs{padding:0 0 10px 48px}
   <div class="voz-txt" id="vozTxt"></div>
   <div class="small muted" style="text-align:center;margin:10px 0 16px">Ej.: «Gasté 250 en Chedraui con la BBVA oro»</div>
   <button class="btn sec" id="vozCancel" style="width:100%">Cancelar</button></div></div>
+<div class="candado" id="candado"><img src="icon-192.png" alt=""><div class="cand-t">Mis Finanzas</div><button class="btn pri" id="candBtn">Desbloquear</button><div class="small muted" id="candMsg"></div><button class="link-btn" id="candSalir">Salir de la cuenta</button></div>
+<script>try{if(localStorage.getItem('misfinanzas_candado'))document.getElementById('candado').classList.add('on')}catch(e){}</script>
 <div class="confirm-veil" id="confirmVeil"><div class="confirm-card"><div class="confirm-msg" id="confirmMsg"></div><div class="confirm-btns"><button class="btn sec" id="confirmNo">Cancelar</button><button class="btn dan" id="confirmSi">Sí, borrar</button></div></div></div>
 
 
@@ -362,7 +365,7 @@ const FB_READY = new Promise((res)=>{ const off = onAuthStateChanged(FB_AUTH, (u
 const uc=(nombre)=>collection(FB_DB,'usuarios',FB_AUTH.currentUser.uid,nombre);
 const ud=(nombre,id)=>doc(FB_DB,'usuarios',FB_AUTH.currentUser.uid,nombre,String(id));
 async function fbEntrar(){ await signInWithPopup(FB_AUTH, FB_PROVIDER); }
-async function fbSalir(){ fbDetenerEscucha(); await signOut(FB_AUTH); try{localStorage.removeItem('misfinanzas_cache_v1');localStorage.removeItem('misfinanzas_cola_v1')}catch(e){} D={mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:''}; }
+async function fbSalir(){ fbDetenerEscucha(); await signOut(FB_AUTH); try{localStorage.removeItem('misfinanzas_cache_v1');localStorage.removeItem('misfinanzas_cola_v1');localStorage.removeItem('misfinanzas_candado')}catch(e){} D={mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:''}; }
 
 /* ============ estado ============ */
 let D = {mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:''};
@@ -1277,6 +1280,9 @@ function rAjustes(){
     <div class="lbl" style="margin-top:4px">Tamaño de letra</div><div class="chips wrap">${Object.entries(LETRAS).map(([k,[l]])=>`<button class="chip ${AP.letra===k?'on':''}" data-ap-letra="${k}">${l}</button>`).join('')}</div>
     <div class="lbl">Densidad de filas</div><div class="chips wrap">${Object.entries(DENS).map(([k,l])=>`<button class="chip ${AP.dens===k?'on':''}" data-ap-dens="${k}">${l}</button>`).join('')}</div>
   </div>
+  <div class="card"><h2>Seguridad</h2>
+    <div class="set-item" style="border:0"><label class="sw"><input type="checkbox" id="candSw" ${CAND()?'checked':''}><span></span></label><div class="mid"><div>Bloqueo con huella o PIN</div><div class="small muted">Al abrir y tras 5 min fuera</div></div></div>
+  </div>
   <div class="card"><h2>Página de inicio</h2>
     ${layoutInicio().map((x,i,arr)=>`<div class="set-item"><label class="sw"><input type="checkbox" data-lay-on="${x.id}" ${x.on?'checked':''}><span></span></label><div class="mid" style="${x.on?'':'opacity:.5'}">${esc((INICIO_TARJETAS.find(t=>t[0]===x.id)||[])[1])}</div>
       <button class="icon-btn" data-lay-up="${i}" ${i===0?'disabled style="opacity:.25"':''} aria-label="Subir"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></button>
@@ -1305,6 +1311,7 @@ function rAjustes(){
   el.querySelector('#exp').onclick=exportar;
   el.querySelector('#cfgEd').onclick=async()=>{ if(!(await confirmar('¿Cerrar sesión en este dispositivo?','Cerrar sesión','pri'))) return; await fbSalir(); mostrarSetup(); };
   el.querySelector('#edPre').onclick=formPresupuestos;
+  el.querySelector('#candSw').onchange=e=>cambiarCandado(e.target.checked);
   el.querySelectorAll('[data-ap-letra],[data-ap-dens]').forEach(b=>b.onclick=()=>{ if(b.dataset.apLetra) AP.letra=b.dataset.apLetra; if(b.dataset.apDens) AP.dens=b.dataset.apDens;
     store.set(AP_KEY,AP); aplicarApariencia(); const y=scrollY; rAjustes(); window.scrollTo(0,y) });
   const lay=layoutInicio(), y0=()=>scrollY;
@@ -1720,11 +1727,55 @@ window.__voz=interpretarVoz;
 
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
+/* ============ bloqueo con huella o PIN ============ */
+const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
+const CAND=()=>store.get(CAND_KEY);
+const azar=n=>crypto.getRandomValues(new Uint8Array(n));
+const b64e=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64d=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+let BLOQ=false, INTENTA=false, OCULTO=0;
+async function verificarHuella(){
+  const c=CAND(); if(!c) return true;
+  await navigator.credentials.get({publicKey:{challenge:azar(32),allowCredentials:[{type:'public-key',id:b64d(c.id),transports:['internal']}],userVerification:'required',timeout:60000}});
+  return true;
+}
+async function desbloquear(){
+  if(INTENTA) return; INTENTA=true; $('#candMsg').textContent='';
+  try{ await verificarHuella(); $('#candado').classList.remove('on'); BLOQ=false }
+  catch(e){ $('#candMsg').textContent='No se pudo verificar' }
+  INTENTA=false;
+}
+function bloquear(){ if(!CAND()) return; BLOQ=true; $('#candado').classList.add('on'); desbloquear() }
+async function cambiarCandado(activar){
+  const volver=()=>{const y=scrollY;rAjustes();window.scrollTo(0,y)};
+  if(activar){
+    let ok=false; try{ ok=!!window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() }catch(e){}
+    if(!ok){ toast('Este dispositivo no lo permite'); return volver() }
+    try{
+      const u=FB_AUTH.currentUser;
+      const cred=await navigator.credentials.create({publicKey:{challenge:azar(32),rp:{name:'Mis Finanzas'},
+        user:{id:azar(16),name:(u&&u.email)||'Mis Finanzas',displayName:'Mis Finanzas'},
+        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},attestation:'none',timeout:60000}});
+      store.set(CAND_KEY,{id:b64e(cred.rawId)}); toast('Bloqueo activado');
+    }catch(e){ toast('No se activó') }
+  } else {
+    try{ await verificarHuella(); localStorage.removeItem(CAND_KEY); toast('Bloqueo desactivado') }catch(e){ toast('No se pudo verificar') }
+  }
+  volver();
+}
+$('#candBtn').onclick=desbloquear;
+$('#candSalir').onclick=async()=>{ try{localStorage.removeItem(CAND_KEY)}catch(e){} BLOQ=false; $('#candado').classList.remove('on'); await fbSalir(); mostrarSetup() };
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ OCULTO=Date.now(); return }
+  if(CAND()&&!BLOQ&&OCULTO&&Date.now()-OCULTO>CAND_MIN*60000) bloquear();
+});
+if(CAND()) bloquear();
 /* ============ arranque ============ */
 (function init(){
   const c=store.get(CACHE_KEY); if(c&&c.mov){D=c;normalizar();aplicarCola();render()}
   FB_READY.then(user=>{
-    if(!user&&!window.MOCK_API){ mostrarSetup(); return }
+    if(!user&&!window.MOCK_API){ try{localStorage.removeItem(CAND_KEY)}catch(e){} BLOQ=false; $('#candado').classList.remove('on'); mostrarSetup(); return }
     cargar(true).then(vaciarCola);
   });
 })();
