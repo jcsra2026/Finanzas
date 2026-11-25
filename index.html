@@ -312,7 +312,7 @@ details.cat-block .subs{padding:0 0 10px 48px}
 /* ============ Firebase ============ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, limit, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA0CeKBk90eGaUd9i14MvaapnKFKzveViw",
@@ -324,13 +324,17 @@ const firebaseConfig = {
 };
 const FB_APP = initializeApp(firebaseConfig);
 const FB_AUTH = getAuth(FB_APP);
-const FB_DB = getFirestore(FB_APP);
+// Copia local en el dispositivo: la app lee y guarda primero aquí y sincroniza sola con la nube
+const FB_DB = initializeFirestore(FB_APP,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
 const FB_PROVIDER = new GoogleAuthProvider();
 // Promesa que se resuelve con el usuario (o null) cuando Firebase ya sabe
 // si hay sesión iniciada. Sirve para no preguntar antes de tiempo.
 const FB_READY = new Promise((res)=>{ const off = onAuthStateChanged(FB_AUTH, (u)=>{ off(); res(u); }); });
+/* Cada cuenta tiene su propia carpeta: usuarios/{uid}/movimientos, categorias, ... */
+const uc=(nombre)=>collection(FB_DB,'usuarios',FB_AUTH.currentUser.uid,nombre);
+const ud=(nombre,id)=>doc(FB_DB,'usuarios',FB_AUTH.currentUser.uid,nombre,String(id));
 async function fbEntrar(){ await signInWithPopup(FB_AUTH, FB_PROVIDER); }
-async function fbSalir(){ fbDetenerEscucha(); await signOut(FB_AUTH); }
+async function fbSalir(){ fbDetenerEscucha(); await signOut(FB_AUTH); try{localStorage.removeItem('misfinanzas_cache_v1');localStorage.removeItem('misfinanzas_cola_v1')}catch(e){} D={mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:''}; }
 
 /* ============ estado ============ */
 let D = {mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:''};
@@ -427,14 +431,14 @@ const CAT_A_FB={
 
 async function fbGetData(){
   const [mov,cat,sub,met,pre,rec,tar,cfgSnap]=await Promise.all([
-    getDocs(collection(FB_DB,'movimientos')),
-    getDocs(collection(FB_DB,'categorias')),
-    getDocs(collection(FB_DB,'subcategorias')),
-    getDocs(collection(FB_DB,'metodos')),
-    getDocs(collection(FB_DB,'presupuestos')),
-    getDocs(collection(FB_DB,'recurrentes')),
-    getDocs(collection(FB_DB,'tarjetas')),
-    getDoc(doc(FB_DB,'config','app'))
+    getDocs(uc('movimientos')),
+    getDocs(uc('categorias')),
+    getDocs(uc('subcategorias')),
+    getDocs(uc('metodos')),
+    getDocs(uc('presupuestos')),
+    getDocs(uc('recurrentes')),
+    getDocs(uc('tarjetas')),
+    getDoc(ud('config','app'))
   ]);
   return {
     mov:mov.docs.map(MOV_DE_FB).sort((a,b)=>a.f.localeCompare(b.f)),
@@ -447,6 +451,78 @@ async function fbGetData(){
     cfg:cfgSnap.exists()?cfgSnap.data():{},
     hoy:hoyLocal()
   };
+}
+
+/* ============ primera vez de cada cuenta ============ */
+const FB_TODAS=['movimientos','categorias','subcategorias','metodos','presupuestos','recurrentes','tarjetas'];
+const INICIALES={
+  categorias:[['Apoyo familiar','Ingreso'],['Beca','Ingreso'],['Regalo','Ingreso'],['Otros ingresos','Ingreso'],['Transferencia','Transferencia'],
+    ['Comida','Gasto'],['Transporte','Gasto'],['Escuela','Gasto'],['Casa','Gasto'],['Celular e internet','Gasto'],['Salud','Gasto'],['Ropa y cuidado personal','Gasto'],['Salidas y entretenimiento','Gasto'],['Otros','Gasto']],
+  subcategorias:{'Comida':['Comedor o cafetería','Comida en la calle','Despensa'],'Transporte':['Camión o metro','Taxi, Didi o Uber','Gasolina'],
+    'Escuela':['Libros','Copias e impresiones','Material','Inscripción o colegiatura'],'Casa':['Renta','Servicios'],'Celular e internet':['Plan del celular','Suscripciones'],
+    'Salud':['Medicinas','Consultas'],'Apoyo familiar':['Mesada']},
+  metodos:[['NU','Débito'],['TDC NU','Crédito'],['Mercado Pago','Débito'],['Efectivo','Efectivo']]
+};
+async function prepararCarpeta(){
+  const marca='misfinanzas_carpeta_'+FB_AUTH.currentUser.uid;
+  if(store.get(marca)) return;
+  await prepararCarpetaNube();
+  store.set(marca,true);
+}
+async function prepararCarpetaNube(){
+  const cfgRef=ud('config','app');
+  const cfg=await getDoc(cfgRef);
+  if(cfg.exists()&&cfg.data().creado) return;                       // ya preparada
+  const propios=await getDocs(query(uc('movimientos'),limit(1)));
+  if(!propios.empty){ await setDoc(cfgRef,{creado:hoyLocal()},{merge:true}); return }
+  // ¿hay datos anteriores (de antes de separar por persona)? Solo la cuenta de Juan Carlos puede leerlos.
+  let viejos=null;
+  try{ viejos=await getDocs(collection(FB_DB,'movimientos')) }catch(e){ viejos=null }
+  if(viejos&&!viejos.empty){
+    const ok=await confirmar(`Encontré tus datos anteriores (${viejos.size.toLocaleString('es-MX')} movimientos). ¿Copiarlos a tu carpeta personal? Solo se hace una vez.`,'Copiar mis datos','pri');
+    if(!ok) throw new Error('Copia cancelada. Vuelve a abrir la app para copiar tus datos.');
+    await copiarDatosAnteriores();
+  }else{
+    await crearCarpetaNueva();
+  }
+}
+async function escribirEnLotes(ops){ // ops: [{ref,data}]
+  for(let i=0;i<ops.length;i+=400){
+    const b=writeBatch(FB_DB); ops.slice(i,i+400).forEach(o=>b.set(o.ref,o.data)); await b.commit();
+  }
+}
+async function copiarDatosAnteriores(){
+  $('#loading').style.display=''; $('#loading').textContent='Copiando tus datos a tu carpeta personal…'; syncing(true);
+  const cuenta={}, ops=[];
+  let sumaVieja=0;
+  for(const col of FB_TODAS){
+    const snap=await getDocs(collection(FB_DB,col));
+    cuenta[col]=snap.size;
+    snap.docs.forEach(d=>{ const x=d.data(); if(col==='movimientos') sumaVieja+=Number(x.importe)||0; ops.push({ref:ud(col,d.id),data:{...x,id:d.id}}) });
+  }
+  const cfgVieja=await getDoc(doc(FB_DB,'config','app'));
+  await escribirEnLotes(ops);
+  await setDoc(ud('config','app'),{...(cfgVieja.exists()?cfgVieja.data():{}),creado:hoyLocal(),migradoDe:'datos anteriores'},{merge:true});
+  // verificación: volver a contar lo copiado
+  const dif=[]; let sumaNueva=0;
+  for(const col of FB_TODAS){
+    const snap=await getDocs(uc(col));
+    if(col==='movimientos') snap.docs.forEach(d=>sumaNueva+=Number(d.data().importe)||0);
+    if(snap.size!==cuenta[col]) dif.push(`${col}: ${cuenta[col]} → ${snap.size}`);
+  }
+  if(Math.abs(sumaNueva-sumaVieja)>0.005) dif.push(`suma de importes: ${fmt(sumaVieja)} → ${fmt(sumaNueva)}`);
+  syncing(false);
+  if(dif.length) await confirmar('⚠️ La copia no cuadra: '+dif.join('; ')+'. No borres nada y avísale a Claude.','Entendido','pri');
+  else await confirmar(`✓ Copia verificada: ${cuenta.movimientos.toLocaleString('es-MX')} movimientos (suma ${fmt(sumaVieja)}), ${cuenta.categorias} categorías, ${cuenta.metodos} cuentas, ${cuenta.presupuestos} presupuestos, ${cuenta.recurrentes} recurrentes y ${cuenta.tarjetas} tarjetas.`,'Continuar','pri');
+}
+async function crearCarpetaNueva(){
+  const ops=[];
+  INICIALES.categorias.forEach(([nombre,tipo],i)=>{const id='c'+(i+1);ops.push({ref:ud('categorias',id),data:{id,nombre,tipo}})});
+  let k=0; Object.entries(INICIALES.subcategorias).forEach(([cat,subs])=>subs.forEach(nombre=>{const id='s'+(++k);ops.push({ref:ud('subcategorias',id),data:{id,nombre,categoria:cat}})}));
+  INICIALES.metodos.forEach(([nombre,tipo],i)=>{const id='m'+(i+1);ops.push({ref:ud('metodos',id),data:{id,nombre,tipo,inicial:0}})});
+  ops.push({ref:ud('config','app'),data:{creado:hoyLocal()}});
+  await escribirEnLotes(ops);
+  toast('Tu carpeta está lista. Pon tus saldos iniciales en Ajustes.');
 }
 
 /* ============ escucha en vivo ============ */
@@ -472,7 +548,7 @@ function fbEscuchar(){
   const tocar=()=>{ clearTimeout(FB_SYNC_T); FB_SYNC_T=setTimeout(fbAplicarServidor,150); };
   const subs=[];
   const escucharCol=(col,clave,conv,ordenar)=>{
-    subs.push(onSnapshot(collection(FB_DB,col),snap=>{
+    subs.push(onSnapshot(uc(col),snap=>{
       FB_SRV[clave]=snap.docs.map(conv);
       if(ordenar) FB_SRV[clave].sort((a,b)=>a.f.localeCompare(b.f));
       FB_LISTO[clave]=true; tocar();
@@ -485,7 +561,7 @@ function fbEscuchar(){
   escucharCol('presupuestos','pre',CAT_DE_FB.pre);
   escucharCol('recurrentes','rec',CAT_DE_FB.rec);
   escucharCol('tarjetas','tar',CAT_DE_FB.tar);
-  subs.push(onSnapshot(doc(FB_DB,'config','app'),snap=>{
+  subs.push(onSnapshot(ud('config','app'),snap=>{
     FB_SRV.cfg=snap.exists()?snap.data():{};
     FB_LISTO.cfg=true; tocar();
   },()=>{}));
@@ -496,17 +572,24 @@ function fbDetenerEscucha(){
   FB_UNSUBS.forEach(u=>{ try{u()}catch(e){} });
   FB_UNSUBS=null; FB_SRV=null; FB_LISTO={};
 }
-async function fbGuardarMovimiento(p){
+/* Las escrituras quedan al instante en la copia local y se suben solas a la nube
+   (aunque no haya señal o cierres la app). La rayita morada indica que aún hay algo por subir. */
+let FB_PEND=0;
+function enNube(promesa){
+  FB_PEND++; syncing(true);
+  promesa.catch(e=>toast('No se pudo guardar en la nube: '+(e.message||e)))
+    .finally(()=>{ FB_PEND--; if(FB_PEND<=0){ FB_PEND=0; syncing(false) } });
+}
+function fbGuardarMovimiento(p){
   const data=MOV_A_FB(p);
-  if(p.id){ await setDoc(doc(FB_DB,'movimientos',p.id),data); return p.id; }
-  const ref=doc(collection(FB_DB,'movimientos'));
-  await setDoc(ref,{...data,id:ref.id});
+  const ref=p.id?ud('movimientos',p.id):doc(uc('movimientos'));
+  enNube(setDoc(ref,{...data,id:ref.id}));
   return ref.id;
 }
-async function fbRegistrarRecurrente(recId,payload,sig){
+function fbRegistrarRecurrente(recId,payload,sig){
   let id=null;
-  if(payload) id=await fbGuardarMovimiento(payload);
-  await updateDoc(doc(FB_DB,'recurrentes',recId),{proxima:sig});
+  if(payload) id=fbGuardarMovimiento(payload);
+  enNube(updateDoc(ud('recurrentes',recId),{proxima:sig}));
   return id;
 }
 // Al cambiar un nombre, actualizar los movimientos y catálogos que lo usan
@@ -530,7 +613,7 @@ async function fbRenombrar(tipo,viejo,nuevo){
   }
   const todos=[];
   for(const u of cambios){
-    let q=query(collection(FB_DB,u[0]),where(u[1],'==',u[2]));
+    let q=query(uc(u[0]),where(u[1],'==',u[2]));
     if(u[4]) q=query(q,where(u[4].campo,'==',u[4].valor));
     const snap=await getDocs(q);
     snap.docs.forEach(d=>todos.push({ref:d.ref,set:u[3]}));
@@ -538,12 +621,12 @@ async function fbRenombrar(tipo,viejo,nuevo){
   for(let i=0;i<todos.length;i+=450){
     const batch=writeBatch(FB_DB);
     todos.slice(i,i+450).forEach(t=>batch.update(t.ref,t.set));
-    await batch.commit();
+    enNube(batch.commit());
   }
 }
 async function fbGuardarCatalogo(tipo,p){
   const col=FB_COLS[tipo];
-  const ref=p.id?doc(FB_DB,col,String(p.id)):doc(collection(FB_DB,col));
+  const ref=p.id?ud(col,String(p.id)):doc(uc(col));
   if(p.id){
     const snap=await getDoc(ref);
     if(snap.exists()){
@@ -553,17 +636,15 @@ async function fbGuardarCatalogo(tipo,p){
       if(viejo.nombre!==nuevo.nombre||(tipo==='sub'&&viejo.cat!==nuevo.cat)) await fbRenombrar(tipo,viejo,nuevo);
     }
   }
-  await setDoc(ref,{...CAT_A_FB[tipo](p),id:ref.id},{merge:true});
+  enNube(setDoc(ref,{...CAT_A_FB[tipo](p),id:ref.id},{merge:true}));
   return ref.id;
 }
 async function fbGuardarPresupuestos(lista){
-  const snap=await getDocs(collection(FB_DB,'presupuestos'));
-  let batch=writeBatch(FB_DB);
+  const snap=await getDocs(uc('presupuestos'));
+  const batch=writeBatch(FB_DB);
   snap.docs.forEach(d=>batch.delete(d.ref));
-  await batch.commit();
-  batch=writeBatch(FB_DB);
-  lista.forEach(x=>{const ref=doc(collection(FB_DB,'presupuestos'));batch.set(ref,{id:ref.id,categoria:x.cat,monto:Number(x.monto)||0})});
-  await batch.commit();
+  lista.forEach(x=>{const ref=doc(uc('presupuestos'));batch.set(ref,{id:ref.id,categoria:x.cat,monto:Number(x.monto)||0})});
+  enNube(batch.commit());
   return true;
 }
 async function api(fn,...args){
@@ -573,11 +654,11 @@ async function api(fn,...args){
   switch(fn){
     case 'getData': return fbGetData();
     case 'guardarMovimiento': return fbGuardarMovimiento(args[0]);
-    case 'borrarMovimiento': await deleteDoc(doc(FB_DB,'movimientos',args[0])); return true;
+    case 'borrarMovimiento': enNube(deleteDoc(ud('movimientos',args[0]))); return true;
     case 'registrarRecurrente': return fbRegistrarRecurrente(args[0],args[1],args[2]);
-    case 'guardarConfig': await setDoc(doc(FB_DB,'config','app'),{[args[0]]:args[1]},{merge:true}); return true;
+    case 'guardarConfig': enNube(setDoc(ud('config','app'),{[args[0]]:args[1]},{merge:true})); return true;
     case 'guardarCatalogo': return fbGuardarCatalogo(args[0],args[1]);
-    case 'borrarCatalogo': await deleteDoc(doc(FB_DB,FB_COLS[args[0]],String(args[1]))); return true;
+    case 'borrarCatalogo': enNube(deleteDoc(ud(FB_COLS[args[0]],String(args[1])))); return true;
     case 'guardarPresupuestos': return fbGuardarPresupuestos(args[0]);
     case 'estadoAlertas': return false;
     case 'instalarAlertas': case 'desinstalarAlertas': case 'probarAlerta':
@@ -588,17 +669,17 @@ async function api(fn,...args){
 const esRed=e=>!navigator.onLine||/network|red|conex|timeout|fetch|load failed|offline|unavailable/i.test(String(e&&e.message||e));
 
 async function cargar(silencioso){
-  syncing(true);
   try{
-    const data=await api('getData');
-    D=data; normalizar(); store.set(CACHE_KEY,data);
-    aplicarCola(); render(); fbEscuchar();
-    if(!silencioso) toast('Datos actualizados');
+    if(window.MOCK_API){ const data=await api('getData'); D=data; normalizar(); store.set(CACHE_KEY,data); aplicarCola(); render(); return }
+    await FB_READY;
+    if(!FB_AUTH.currentUser) throw new Error('Sesión no iniciada');
+    await prepararCarpeta();
+    fbEscuchar();            // si ya estaba escuchando no vuelve a leer nada
+    if(!silencioso){ render(); toast('Datos al día') }
   }catch(e){
     if(/Sesión no iniciada/i.test(e.message||'')){ fbDetenerEscucha(); mostrarSetup('Tu sesión terminó. Vuelve a entrar con Google.'); }
     else if(!D.mov.length) $('#loading').textContent='No pude cargar los datos: '+(e.message||e);
     else toast('Sin conexión, mostrando datos guardados') }
-  syncing(false);
 }
 
 /* cola offline */
@@ -1439,14 +1520,17 @@ $('#sOk').onclick=async()=>{
   $('#sOk').disabled=true; $('#sMsg').textContent='Abriendo el inicio de sesión de Google…';
   try{
     await fbEntrar();
-    const data=await api('getData'); D=data; normalizar(); store.set(CACHE_KEY,data);
-    $('nav.bottom').style.display=''; $('#btnRefresh').style.display=$('#btnAjustes').style.display=''; S.view='inicio'; ir('inicio'); fbEscuchar(); toast('¡Conectado!')
+    D={mov:[],cat:[],sub:[],met:[],pre:[],rec:[],tar:[],hoy:hoyLocal()}; normalizar(); store.set(CACHE_KEY,null);
+    await cargar(true);
+    $('nav.bottom').style.display=''; $('#btnRefresh').style.display=$('#btnAjustes').style.display=''; S.view='inicio'; ir('inicio'); toast('¡Conectado!')
   }
   catch(e){ $('#sMsg').textContent='No se pudo entrar: '+(e.message||e) }
   $('#sOk').disabled=false;
 };
 if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 
+// acceso de solo lectura para pruebas
+window.__app={get S(){return S},get D(){return D}};
 /* ============ arranque ============ */
 (function init(){
   const c=store.get(CACHE_KEY); if(c&&c.mov){D=c;normalizar();aplicarCola();render()}
