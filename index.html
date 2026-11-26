@@ -65,10 +65,11 @@ main{padding:0 16px}
 .stat.big b{font-size:calc(30px*var(--fs));letter-spacing:-.02em}
 .delta{font-size:calc(12px*var(--fs));margin-top:2px}
 /* bars */
-.bar-row{display:grid;grid-template-columns:minmax(90px,1.1fr) 2fr auto;gap:10px;align-items:center;padding:7px 0;font-size:calc(14px*var(--fs))}
+.bar-row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(48px,1.55fr) calc(var(--aw,6) * 1ch + 4px);gap:10px;align-items:center;padding:7px 0;font-size:calc(14px*var(--fs))}
 .bar-row.click{cursor:pointer}
 .bar-track{height:8px;background:var(--line);border-radius:6px;overflow:hidden}
 .bar-fill{height:100%;border-radius:6px}
+.bar-row .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bar-row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sub-rows{padding-left:14px;border-left:2px solid var(--line);margin:2px 0 6px 4px}
 .sub-rows .bar-row{font-size:calc(13px*var(--fs));padding:4px 0}
@@ -891,7 +892,8 @@ function itemHTML(x){
 }
 function bindItems(root){root.querySelectorAll('.item[data-id]').forEach(b=>b.onclick=()=>{const m=D.mov.find(x=>x.id===b.dataset.id);if(m)abrirForm(m)})}
 function barras(items,max,col,click){
-  return items.map(([k,v,extra])=>`<div class="bar-row ${click?'click':''}" ${click?`data-k="${esc(k)}"`:''}><span class="name">${esc(k)}</span><div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%;background:${typeof col==='function'?col(k):col}"></div></div><span class="num small">${fmt0(v)}</span></div>${extra||''}`).join('');
+  const aw=Math.max(...items.map(([,v])=>fmt0(v).length),1);
+  return items.map(([k,v,extra])=>`<div class="bar-row ${click?'click':''}" style="--aw:${aw}" ${click?`data-k="${esc(k)}"`:''}><span class="name">${esc(k)}</span><div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%;background:${typeof col==='function'?col(k):col}"></div></div><span class="num small">${fmt0(v)}</span></div>${extra||''}`).join('');
 }
 
 /* Tarjetas de Inicio que se pueden mostrar/ocultar y ordenar (Ajustes → Página de inicio) */
@@ -1188,7 +1190,7 @@ function rTarjetas(el){
     const pc=partes(e.corteF), corteAnt=fecha(pc[0],pc[1]-1,e.corte);
     const ant=D.mov.filter(x=>x.o===t&&x.t==='Gasto'&&x.f>corteAnt&&x.f<=e.corteF).reduce((a,x)=>a+x.m,0);
     return {t,tot,html:`<div class="card"><h2 style="display:flex;justify-content:space-between"><span>${esc(t)}</span><span class="badge ${e.diasCorte<=3?'amber':''}" style="${e.diasCorte>3?'background:var(--acc-soft);color:var(--acc)':''}">corte ${e.diasCorte===0?'hoy':cuando(e.diasCorte)}</span></h2>
-      <div class="hero" style="margin-bottom:6px"><div class="stat"><small>Llevas en este periodo</small><b class="num ${tot>0?'gas':''}">${fmt(tot)}</b><div class="delta muted">${g.length} compras desde el ${fCorta(addDays(e.corteF,1))}</div></div>
+      <div class="hero" style="margin-bottom:6px"><div class="stat"><small>Llevas en este periodo</small><b class="num ${tot>0?'gas':''}">${fmt(tot)}</b><div class="delta muted">${g.length} ${g.length===1?'compra':'compras'} desde el ${fCorta(addDays(e.corteF,1))}</div></div>
       <div class="stat"><small>Periodo anterior completo</small><b class="num">${fmt(ant)}</b><div class="delta muted">Deuda actual ${fmt(Math.abs(Math.min(0,sal[t]||0)))}</div></div></div>
       ${utilBar(t)}<div style="height:8px"></div>
       ${items.length?barras(items,items[0][1],k=>color(k)):'<div class="small muted">Sin compras en este periodo.</div>'}</div>`}});
@@ -1761,7 +1763,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='41';
+const APP_VER='43';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
