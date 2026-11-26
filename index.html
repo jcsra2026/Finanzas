@@ -93,6 +93,7 @@ main{padding:0 16px}
 .icgrp{font-size:calc(12px*var(--fs));color:var(--muted);font-weight:600;margin:12px 0 6px}.icgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.icgrid button{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line)}.icgrid button svg{width:22px;height:22px}.icgrid button.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
 .av.ac{font-size:calc(16px*var(--fs));font-weight:800;letter-spacing:.3px}.av.t-deb{color:#1D4ED8;background:#2563EB2E}.av.t-cre{color:#C2410C;background:#EA580C2E}.av.t-efe{color:#15803D;background:#16A34A2E}.av.t-inv{color:#6D28D9;background:#7C3AED2E}
 @media (prefers-color-scheme: dark){.av.t-deb{color:#60A5FA;background:#2563EB55}.av.t-cre{color:#FDBA74;background:#EA580C55}.av.t-efe{color:#4ADE80;background:#16A34A55}.av.t-inv{color:#C4B5FD;background:#7C3AED55}}
+.cierre-row{display:grid;grid-template-columns:1fr auto 6.2em;gap:10px;padding:5px 0;font-size:calc(14px*var(--fs))}.cierre-row .num{text-align:right;font-variant-numeric:tabular-nums}.cierre-btns{display:flex;gap:8px}.cierre-btns .btn{height:42px;padding:0 8px;font-size:calc(14px*var(--fs))}
 .av{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:calc(14px*var(--fs));flex:none}
 .item .mid{flex:1;min-width:0}
 .item .t1{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -592,6 +593,7 @@ function fbAplicarServidor(){
   store.set(CACHE_KEY,{mov:FB_SRV.mov,cat:FB_SRV.cat,sub:FB_SRV.sub,met:FB_SRV.met,pre:FB_SRV.pre,rec:FB_SRV.rec,tar:FB_SRV.tar,cfg:FB_SRV.cfg,hoy:D.hoy});
   aplicarCola();
   render();
+  revisarPresupuestoMes();
 }
 function fbEscuchar(){
   if(FB_UNSUBS||!FB_AUTH.currentUser) return; // ya escucha, o sin sesión
@@ -936,13 +938,13 @@ function rInicio(){
       ${mm.length>6?'<button class="tiny-btn" id="verTodos" style="margin:4px 8px 10px">Ver todos ('+mm.length+')</button>':''}</div>`},
     ritmo:()=>ritmoCardHTML(S.mes)
   };
-  el.innerHTML=alertasHTML()+monthBar()+`
+  el.innerHTML=cierreHTML()+alertasHTML()+monthBar()+`
   <div class="card"><h2>Balance del mes</h2><div class="hero">
     <div class="stat big"><b class="num ${ing-gas>=0?'ing':'gas'}">${fmt(ing-gas)}</b></div>
     <div class="stat"><small>Ingresos</small><b class="num ing">${fmt(ing)}</b></div>
     <div class="stat"><small>Gastos</small><b class="num gas">${fmt(gas)}</b>${gasP?`<div class="delta muted">${dp>=0?'▲':'▼'} ${Math.abs(dp).toFixed(0)}% vs ${mesCorto(mesAdd(S.mes,-1))}${esActI?' al día '+diaI:''}</div>`:''}</div>
   </div></div>`+layoutInicio().filter(x=>x.on).map(x=>T[x.id]()).join('');
-  bindMonth(el); bindItems(el); bindAlertas(el);
+  bindMonth(el); bindItems(el); bindAlertas(el); bindCierre(el);
   const gc=el.querySelector('#goCuentas'); if(gc) gc.onclick=()=>ir('cuentas');
   el.querySelectorAll('[data-tipo] .bar-row[data-k]').forEach(r=>r.onclick=()=>{S.cat=r.dataset.k;S.sub='';S.acc='';S.tipo=r.closest('[data-tipo]').dataset.tipo;ir('movs')});
   const vt=el.querySelector('#verTodos'); if(vt) vt.onclick=()=>{S.cat='';S.acc='';S.tipo='';ir('movs')};
@@ -983,6 +985,41 @@ function bindAlertas(el){
 }
 
 /* presupuesto del mes */
+/* ---- Cierre del mes: los días 1 y 2 se elige el presupuesto; el día 3 se aplica el promedio de 3 meses ---- */
+const PRE_DIAS=2;
+function mesActual(){return (D.hoy||hoyLocal()).slice(0,7)}
+function preDecidido(){return !D.pre.length||D.cfg.pre_mes===mesActual()}
+async function marcarPreMes(){const m=mesActual();D.cfg.pre_mes=m;store.set(CACHE_KEY,D);try{await api('guardarConfig','pre_mes',m)}catch(e){}}
+function presupuestoPromedio(){return D.pre.map(x=>({cat:x.cat,monto:Math.round(promedioGasto(x.cat)/100)*100||x.monto}))}
+async function aplicarPresupuesto(lista,msg){
+  syncing(true);
+  try{ await api('guardarPresupuestos',lista); D.pre=lista.map((x,i)=>({id:i+1,...x})); await marcarPreMes(); render(); if(msg) toast(msg) }
+  catch(e){ toast('Error: '+(e.message||e)) }
+  syncing(false);
+}
+let PRE_REVISADO=false;
+function revisarPresupuestoMes(){
+  if(PRE_REVISADO||!D.pre.length) return; PRE_REVISADO=true;
+  if(!D.cfg.pre_mes){ marcarPreMes(); return }            // primera vez: empieza a contar desde el próximo mes
+  if(preDecidido()) return;
+  if(partes(D.hoy||hoyLocal())[2]>PRE_DIAS) aplicarPresupuesto(presupuestoPromedio(),'Presupuesto de '+MESES[+mesActual().slice(5)-1].toLowerCase()+': promedio de 3 meses');
+}
+function cierreHTML(){
+  if(preDecidido()||partes(D.hoy||hoyLocal())[2]>PRE_DIAS) return '';
+  const ant=mesAdd(mesActual(),-1), nom=MESES[+ant.slice(5)-1].toLowerCase();
+  const rows=D.pre.map(x=>{const g=D.mov.filter(y=>y.t==='Gasto'&&y.c===x.cat&&enMes(y,ant)).reduce((a,y)=>a+y.m,0);return {cat:x.cat,pre:x.monto,g,prom:Math.round(promedioGasto(x.cat)/100)*100}});
+  const tp=rows.reduce((a,r)=>a+r.pre,0),tg=rows.reduce((a,r)=>a+r.g,0),tpr=rows.reduce((a,r)=>a+r.prom,0);
+  const fila=(n,g,pr,b)=>`<div class="cierre-row"><span>${b?'<b>'+n+'</b>':esc(n)}</span><span class="num small ${g>pr?'gas':'ing'}">${fmt0(g)}</span><span class="num small muted">de ${fmt0(pr)}</span></div>`;
+  return `<div class="card cierre"><h2>Cierre de ${nom}</h2>${fila('Total',tg,tp,1)}${rows.map(r=>fila(r.cat,r.g,r.pre)).join('')}
+    <div class="small muted" style="margin:10px 0 8px">Promedio 3 meses: <b>${fmt0(tpr)}</b>/mes · si no eliges, el día ${PRE_DIAS+1} se aplica</div>
+    <div class="cierre-btns"><button class="btn sec" id="preMant">Mantener</button><button class="btn pri" id="preProm">Promedio</button><button class="btn sec" id="preEdit">Editar</button></div></div>`;
+}
+function bindCierre(el){
+  const m=el.querySelector('#preMant'); if(!m) return;
+  m.onclick=async()=>{await marcarPreMes();render();toast('Presupuesto sin cambios')};
+  el.querySelector('#preProm').onclick=()=>aplicarPresupuesto(presupuestoPromedio(),'Promedio de 3 meses aplicado');
+  el.querySelector('#preEdit').onclick=formPresupuestos;
+}
 function presupuestoHTML(byC){
   if(!D.pre.length) return `<div class="card" style="display:flex;align-items:center;gap:10px"><div class="mid small muted" style="flex:1">Aún no tienes presupuestos por categoría.</div><button class="tiny-btn" id="goPre">Definir</button></div>`;
   const hoy=D.hoy||hoyLocal(), esActual=S.mes===hoy.slice(0,7);
@@ -1063,7 +1100,14 @@ function rResumen(el){
   const primero=(D.mov.map(x=>x.f.slice(0,7)).sort()[0])||desde;
   const ini=S.rep==='mes'?mesAdd(hasta,-5):(desde<primero?primero:desde); const meses=[];for(let m=ini;m<=hasta;m=mesAdd(m,1))meses.push(m);
   const bm=meses.map(m=>{const a=D.mov.filter(x=>enMes(x,m));return [m,suma(a,'Ingreso'),suma(a,'Gasto')]});
-  const maxM=Math.max(1,...bm.flatMap(x=>[x[1],x[2]]));
+  // más de 12 meses: por trimestre; más de 36: por año
+  const unidad=bm.length>36?'año':bm.length>12?'trimestre':'mes';
+  const grp=[];bm.forEach(([m,i,g])=>{const y=m.slice(0,4),q=Math.ceil(+m.slice(5)/3);
+    const k=unidad==='año'?y:unidad==='trimestre'?y+'T'+q:m;
+    const lbl=unidad==='año'?y:unidad==='trimestre'?`T${q}'${y.slice(2)}`:mesCorto(m);
+    const tit=unidad==='año'?y:unidad==='trimestre'?`${q}º trimestre ${y}`:mesNombre(m);
+    const last=grp[grp.length-1]; if(last&&last.k===k){last.i+=i;last.g+=g} else grp.push({k,lbl,tit,i,g})});
+  const maxM=Math.max(1,...grp.flatMap(x=>[x.i,x.g]));
   const porCat=t=>{const o={};f.filter(x=>x.t===t).forEach(x=>o[x.c]=(o[x.c]||0)+x.m);return Object.entries(o).sort((a,b)=>b[1]-a[1])};
   const gc=porCat('Gasto'), ic=porCat('Ingreso');
   const conSubs=(lista,t)=>lista.map(([c,v])=>{let extra='';if(S.repOpen[t+c]){const o={};f.filter(x=>x.t===t&&x.c===c).forEach(x=>o[x.s||'(sin subcategoría)']=(o[x.s||'(sin subcategoría)']||0)+x.m);const s=Object.entries(o).sort((a,b)=>b[1]-a[1]);extra=`<div class="sub-rows">${barras(s,s[0][1],color(c))}</div>`}return [c,v,extra]});
@@ -1075,7 +1119,7 @@ function rResumen(el){
     <div class="stat"><small>Ingresos</small><b class="num ing">${fmt(ing)}</b></div>
     <div class="stat"><small>Gastos</small><b class="num gas">${fmt(gas)}</b>${nMeses>1?`<div class="delta muted">Promedio ${fmt0(gas/nMeses)}/mes</div>`:''}</div>
   </div></div>
-  <div class="card"><h2>Ingresos vs gastos por mes</h2><div class="cols">${bm.map(([m,i,g])=>`<div class="col" title="${mesNombre(m)}: +${fmt0(i)} / -${fmt0(g)}"><div class="pair"><i style="height:${i/maxM*100}%;background:var(--ing)"></i><i style="height:${g/maxM*100}%;background:var(--gas)"></i></div><span>${mesCorto(m)}</span></div>`).join('')}</div>
+  <div class="card"><h2>Ingresos vs gastos por ${unidad}</h2><div class="cols">${grp.map(({lbl,tit,i,g})=>`<div class="col" title="${tit}: +${fmt0(i)} / -${fmt0(g)}"><div class="pair"><i style="height:${i/maxM*100}%;background:var(--ing)"></i><i style="height:${g/maxM*100}%;background:var(--gas)"></i></div><span>${lbl}</span></div>`).join('')}</div>
   <div class="legend"><span><i style="background:var(--ing)"></i>Ingresos</span><span><i style="background:var(--gas)"></i>Gastos</span></div></div>
   <div class="card"><h2>Gastos por categoría</h2>${gc.length?barras(conSubs(gc,'Gasto'),gc[0][1],k=>color(k),true):'<div class="muted small">Sin gastos.</div>'}</div>
   <div class="card"><h2>Ingresos por categoría</h2>${ic.length?barras(conSubs(ic,'Ingreso'),ic[0][1],'var(--ing)',true):'<div class="muted small">Sin ingresos.</div>'}</div>
@@ -1434,7 +1478,7 @@ function formPresupuestos(){
   $('#pSave').onclick=async()=>{
     const lista=[...document.querySelectorAll('[data-pc]')].map(i=>({cat:i.dataset.pc,monto:leerMonto(i)})).filter(x=>x.monto>0);
     $('#pSave').disabled=true; syncing(true);
-    try{await api('guardarPresupuestos',lista);D.pre=lista.map((x,i)=>({id:i+1,...x}));store.set(CACHE_KEY,D);cerrarModal('sheet2');render();toast('Presupuestos guardados')}
+    try{await api('guardarPresupuestos',lista);D.pre=lista.map((x,i)=>({id:i+1,...x}));store.set(CACHE_KEY,D);if(!preDecidido())await marcarPreMes();cerrarModal('sheet2');render();toast('Presupuestos guardados')}
     catch(e){toast('Error: '+(e.message||e));$('#pSave').disabled=false}
     syncing(false);
   };
@@ -1764,7 +1808,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='44';
+const APP_VER='46';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
