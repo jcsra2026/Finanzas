@@ -90,6 +90,8 @@ main{padding:0 16px}
 .cat-prev{display:flex;justify-content:center;margin:2px 0 6px}.cat-prev .av{width:60px;height:60px;border-radius:18px;font-size:calc(20px*var(--fs))}
 .colrow{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;justify-items:center}.colrow button{width:36px;height:36px;border-radius:50%}.colrow button.on{outline:3px solid var(--ink,currentColor);outline-offset:3px}
 .icgrp{font-size:calc(12px*var(--fs));color:var(--muted);font-weight:600;margin:12px 0 6px}.icgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.icgrid button{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line)}.icgrid button svg{width:22px;height:22px}.icgrid button.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.av.ac{font-size:calc(16px*var(--fs));font-weight:800;letter-spacing:.3px}.av.t-deb{color:#1D4ED8;background:#2563EB2E}.av.t-cre{color:#C2410C;background:#EA580C2E}.av.t-efe{color:#15803D;background:#16A34A2E}.av.t-inv{color:#6D28D9;background:#7C3AED2E}
+@media (prefers-color-scheme: dark){.av.t-deb{color:#60A5FA;background:#2563EB55}.av.t-cre{color:#FDBA74;background:#EA580C55}.av.t-efe{color:#4ADE80;background:#16A34A55}.av.t-inv{color:#C4B5FD;background:#7C3AED55}}
 .av{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:calc(14px*var(--fs));flex:none}
 .item .mid{flex:1;min-width:0}
 .item .t1{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -402,6 +404,7 @@ function icoSugerido(nombre){const k=sinAcento(nombre);const r=ICO_SUG.find(([re
 function svgIco(n,px){return ICOS[n]?`<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${px?` style="width:${px}px;height:${px}px"`:''}>${ICOS[n]}</svg>`:''}
 function icoNombre(c){const o=(D.cat||[]).find(x=>x.nombre===c);return (o&&o.icono&&ICOS[o.icono])?o.icono:icoSugerido(c)}
 function icoCat(c){const n=icoNombre(c);return n?svgIco(n):esc(iniciales(c))}
+function avMet(n){const m=(D.met||[]).find(x=>x.nombre===n);const t=m?m.tipo:'Débito';return `<div class="av ac ${t==='Crédito'?'t-cre':t==='Efectivo'?'t-efe':t==='Inversión'?'t-inv':'t-deb'}">${esc(iniciales(n))}</div>`}
 function iniciales(s){return String(s||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2400)}
 /* Confirmación propia: muestra la ventana de la app y resuelve true/false
@@ -953,9 +956,9 @@ function alertasHTML(){
   if(!tj.length&&!rc.length&&!cortes.length&&!ut.length) return '';
   const badge=n=>n<0?'<span class="badge red">Vencido</span>':n<=3?'<span class="badge red">'+(n===0?'Hoy':n+' d')+'</span>':n<=7?'<span class="badge amber">'+n+' d</span>':'';
   const filas=[
-    ...tj.map(e=>{const c=color(e.met);return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(e.met))}</div><div class="mid"><div class="t1">Pago ${esc(e.met)}${badge(e.dias)}</div><div class="t2">${e.dias<0?'Fecha límite fue el '+fCorta(e.pagoF)+' · sin pago registrado':'Fecha límite '+fCorta(e.pagoF)+' · '+cuando(e.dias)}</div></div><div class="right"><div class="small muted">Deuda actual</div><div class="num gas" style="font-weight:700">${fmt(Math.abs(Math.min(0,e.deuda)))}</div><div class="al-btns"><button class="pill-btn" data-pay="${esc(e.met)}">Pagar</button></div></div></div>`}),
-    ...ut.map(u=>{const c=color(u.met),p=u.estado==='pasado';return `<div class="al-row" data-util="${esc(u.met)}" style="cursor:pointer"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(u.met))}</div><div class="mid"><div class="t1" style="white-space:normal">${esc(u.met)}<span class="badge ${p?'red':'amber'}">${p?'Pasaste tu tope':'Cerca del tope'}</span></div><div class="t2">${u.pct.toFixed(0)}% usado · tope ${u.tope}%</div></div><div class="right"><div class="small muted">Deuda</div><div class="num ${p?'gas':''}" style="font-weight:700;${p?'':'color:#F59E0B'}">${fmt(u.deuda)}</div></div></div>`}),
-    ...cortes.map(e=>{const c=color(e.met);return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(e.met))}</div><div class="mid"><div class="t1">Corte ${esc(e.met)}<span class="badge amber">${e.diasCorte===0?'Hoy':cuando(e.diasCorte)}</span></div><div class="t2">${fCorta(e.proxCorte)}</div></div></div>`}),
+    ...tj.map(e=>{const c=color(e.met);return `<div class="al-row">${avMet(e.met)}<div class="mid"><div class="t1">Pago ${esc(e.met)}${badge(e.dias)}</div><div class="t2">${e.dias<0?'Fecha límite fue el '+fCorta(e.pagoF)+' · sin pago registrado':'Fecha límite '+fCorta(e.pagoF)+' · '+cuando(e.dias)}</div></div><div class="right"><div class="small muted">Deuda actual</div><div class="num gas" style="font-weight:700">${fmt(Math.abs(Math.min(0,e.deuda)))}</div><div class="al-btns"><button class="pill-btn" data-pay="${esc(e.met)}">Pagar</button></div></div></div>`}),
+    ...ut.map(u=>{const c=color(u.met),p=u.estado==='pasado';return `<div class="al-row" data-util="${esc(u.met)}" style="cursor:pointer">${avMet(u.met)}<div class="mid"><div class="t1" style="white-space:normal">${esc(u.met)}<span class="badge ${p?'red':'amber'}">${p?'Pasaste tu tope':'Cerca del tope'}</span></div><div class="t2">${u.pct.toFixed(0)}% usado · tope ${u.tope}%</div></div><div class="right"><div class="small muted">Deuda</div><div class="num ${p?'gas':''}" style="font-weight:700;${p?'':'color:#F59E0B'}">${fmt(u.deuda)}</div></div></div>`}),
+    ...cortes.map(e=>{const c=color(e.met);return `<div class="al-row">${avMet(e.met)}<div class="mid"><div class="t1">Corte ${esc(e.met)}<span class="badge amber">${e.diasCorte===0?'Hoy':cuando(e.diasCorte)}</span></div><div class="t2">${fCorta(e.proxCorte)}</div></div></div>`}),
     ...rc.map(r=>{const n=dias(hoy,r.prox);const c=r.t==='Transferencia'?'var(--tra)':color(r.c);const cls=r.t==='Ingreso'?'ing':r.t==='Gasto'?'gas':'tra';
       return `<div class="al-row"><div class="av" style="background:${c}22;color:${c}"><svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></div><div class="mid"><div class="t1">${esc(r.nombre)}${badge(n)}</div><div class="t2">${r.frec} · ${fCorta(r.prox)} · ${cuando(n)}</div></div><div class="right"><div class="num ${cls}" style="font-weight:700">${fmt(r.m)}</div><div class="al-btns"><button class="pill-btn ghost" data-skip="${esc(r.id)}">Omitir</button><button class="pill-btn" data-reg="${esc(r.id)}">Registrar</button></div></div></div>`})
   ];
@@ -1020,10 +1023,10 @@ function rMovs(){
 function rCuentas(){
   const el=$('#v-cuentas'); const sal=saldos();
   const nombres=[...new Set([...D.met.map(m=>m.nombre),...Object.keys(sal)])].filter(Boolean);
-  const grupos={'Débito':[], 'Efectivo':[], 'Crédito':[]};
+  const grupos={'Débito':[], 'Inversión':[], 'Efectivo':[], 'Crédito':[]};
   nombres.forEach(n=>{const t=tipoMetodo(n);(grupos[t]||(grupos[t]=[])).push(n)});
   let disp=0,deuda=0; nombres.forEach(n=>{ if(tipoMetodo(n)==='Crédito') deuda+=sal[n]||0; else disp+=sal[n]||0 });
-  const titulo={'Débito':'Cuentas y ahorro','Efectivo':'Efectivo','Crédito':'Tarjetas de crédito'};
+  const titulo={'Débito':'Cuentas corrientes','Inversión':'Ahorro e inversión','Efectivo':'Efectivo','Crédito':'Tarjetas de crédito'};
   const ET={}; estadoTarjetas().forEach(e=>ET[e.met]=e);
   el.innerHTML=`<div class="card"><h2>Patrimonio neto</h2><div class="hero">
     <div class="stat big"><b class="num">${fmt(disp+deuda)}</b></div>
@@ -1033,8 +1036,8 @@ function rCuentas(){
     arr.sort((a,b)=>Math.abs(sal[b]||0)-Math.abs(sal[a]||0));
     const tot=arr.reduce((a,n)=>a+(sal[n]||0),0);
     return `<div class="card"><h2 style="display:flex;justify-content:space-between"><span>${titulo[t]||t}</span><span class="num">${fmt(tot)}</span></h2>${arr.map(n=>{const v=sal[n]||0;const c=color(n);
-      if(t==='Crédito') return `<button class="acc-row cc ${Math.abs(v)<0.005&&!utilizacion().some(u=>u.met===n)?'zero':''}" data-acc="${esc(n)}"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(n))}</div><div class="mid"><div style="font-weight:600">${esc(n)}</div><div class="small muted">${fechaTarjeta(ET[n])}</div></div><div class="num" style="font-weight:700;${v<0?'color:var(--gas)':''}">${fmt(v)}</div>${utilBar(n)}</button>`;
-      return `<button class="acc-row ${Math.abs(v)<0.005?'zero':''}" data-acc="${esc(n)}"><div class="av" style="background:${c}22;color:${c}">${esc(iniciales(n))}</div><div class="mid"><div style="font-weight:600">${esc(n)}</div><div class="small muted">Saldo</div></div><div class="num" style="font-weight:700;${v<0?'color:var(--gas)':''}">${fmt(v)}</div></button>`}).join('')}</div>`}).join('');
+      if(t==='Crédito') return `<button class="acc-row cc ${Math.abs(v)<0.005&&!utilizacion().some(u=>u.met===n)?'zero':''}" data-acc="${esc(n)}">${avMet(n)}<div class="mid"><div style="font-weight:600">${esc(n)}</div><div class="small muted">${fechaTarjeta(ET[n])}</div></div><div class="num" style="font-weight:700;${v<0?'color:var(--gas)':''}">${fmt(v)}</div>${utilBar(n)}</button>`;
+      return `<button class="acc-row ${Math.abs(v)<0.005?'zero':''}" data-acc="${esc(n)}">${avMet(n)}<div class="mid"><div style="font-weight:600">${esc(n)}</div><div class="small muted">Saldo</div></div><div class="num" style="font-weight:700;${v<0?'color:var(--gas)':''}">${fmt(v)}</div></button>`}).join('')}</div>`}).join('');
   el.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>{S.acc=b.dataset.acc;S.cat='';S.sub='';S.tipo='';ir('movs')});
 }
 
@@ -1292,7 +1295,7 @@ function rAjustes(){
   </div>
   <div class="card"><h2>Categorías de gasto</h2>${bloqueTipo('Gasto')}<button class="tiny-btn" data-nc="Gasto" style="margin-top:8px">+ Nueva categoría de gasto</button></div>
   <div class="card"><h2>Categorías de ingreso</h2>${bloqueTipo('Ingreso')}<button class="tiny-btn" data-nc="Ingreso" style="margin-top:8px">+ Nueva categoría de ingreso</button></div>
-  <div class="card"><h2>Métodos de pago / cuentas</h2>${D.met.map(m=>`<div class="set-item"><div class="av" style="background:${color(m.nombre)}22;color:${color(m.nombre)}">${esc(iniciales(m.nombre))}</div><div class="mid"><div style="font-weight:600">${esc(m.nombre)}</div><div class="small muted">${esc(m.tipo)} · inicial ${fmt(m.inicial)} · ${usoMet[m.nombre]||0} movs${(()=>{const t=D.tar.find(x=>x.met===m.nombre);return (t&&t.corte?` · corte ${t.corte}, pago ${t.pago}`:'')+(t&&t.limite?` · límite ${fmt0(t.limite)}`:'')+(t&&t.alerta?` · tope ${t.alerta}%`:'')})()}</div></div><button class="tiny-btn" data-em="${esc(m.id)}">Editar</button></div>`).join('')}<button class="tiny-btn" id="nm" style="margin-top:8px">+ Nuevo método de pago</button></div>
+  <div class="card"><h2>Métodos de pago / cuentas</h2>${D.met.map(m=>`<div class="set-item">${avMet(m.nombre)}<div class="mid"><div style="font-weight:600">${esc(m.nombre)}</div><div class="small muted">${esc(m.tipo)} · inicial ${fmt(m.inicial)} · ${usoMet[m.nombre]||0} movs${(()=>{const t=D.tar.find(x=>x.met===m.nombre);return (t&&t.corte?` · corte ${t.corte}, pago ${t.pago}`:'')+(t&&t.limite?` · límite ${fmt0(t.limite)}`:'')+(t&&t.alerta?` · tope ${t.alerta}%`:'')})()}</div></div><button class="tiny-btn" data-em="${esc(m.id)}">Editar</button></div>`).join('')}<button class="tiny-btn" id="nm" style="margin-top:8px">+ Nuevo método de pago</button></div>
   <div class="card"><h2>Presupuestos mensuales</h2>${D.pre.length?D.pre.map(x=>`<div class="set-item"><div class="mid">${esc(x.cat)}</div><b class="num">${fmt(x.monto)}</b></div>`).join(''):'<div class="small muted">Sin presupuestos todavía.</div>'}<button class="tiny-btn" id="edPre" style="margin-top:8px">${D.pre.length?'Editar presupuestos':'+ Definir presupuestos'}</button></div>
   <div class="card"><h2>Movimientos recurrentes</h2>${D.rec.length?[...D.rec].sort((a,b)=>String(a.prox).localeCompare(String(b.prox))).map(r=>`<div class="set-item" style="${r.activo?'':'opacity:.5'}"><div class="mid"><div style="font-weight:600">${esc(r.nombre)}</div><div class="small muted">${fmt(r.m)} · ${r.frec} · próximo ${r.prox?fCorta(r.prox):'—'}${r.activo?'':' · pausado'}</div></div><button class="tiny-btn" data-er="${esc(r.id)}">Editar</button></div>`).join(''):'<div class="small muted">Sin recurrentes</div>'}<button class="tiny-btn" id="nr" style="margin-top:8px">+ Nuevo recurrente</button></div>
   <div class="card"><h2>Datos</h2>
@@ -1356,7 +1359,7 @@ function formCat(tipo,o){
     <div class="lbl">Ícono</div>${ICO_GRUPOS.map(([g,ns])=>`<div class="icgrp">${g}</div><div class="icgrid">${ns.map(n=>`<button class="${n===CV.icono?'on':''}" data-ico="${n}">${svgIco(n)}</button>`).join('')}</div>`).join('')}`;
   }
   if(tipo==='sub') campos+=`<div class="lbl">Categoría</div>${ddHTML('cCat',catsSub.map(n=>[n,n]),CV.cat)}`;
-  if(tipo==='met') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Débito','Débito'],['Crédito','Crédito'],['Efectivo','Efectivo']],CV.tipo)}
+  if(tipo==='met') campos+=`<div class="lbl">Tipo</div>${ddHTML('cTipo',[['Débito','Cuenta corriente / débito'],['Inversión','Ahorro e inversión'],['Efectivo','Efectivo'],['Crédito','Tarjeta de crédito']],CV.tipo)}
     <div class="lbl">Monto inicial</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cIni" inputmode="decimal" data-num="signed" enterkeyhint="done">${o.inicial??0}</div><div class="small muted" style="margin-top:6px">Tarjetas: la deuda inicial va en negativo</div>
     <div id="tarBox" style="display:${o.tipo==='Crédito'?'block':'none'}">${(()=>{const t=D.tar.find(x=>x.met===o.nombre)||{};return `
       <div class="row2" style="gap:10px"><div style="flex:1"><div class="lbl">Día de corte</div><div class="field ce" contenteditable="true" role="textbox" data-ce id="cCorte" inputmode="numeric" data-num="numeric" enterkeyhint="done" data-ph="ej. 15">${t.corte||''}</div></div>
@@ -1756,7 +1759,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='39';
+const APP_VER='40';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
