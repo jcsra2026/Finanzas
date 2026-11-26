@@ -78,7 +78,7 @@ main{padding:0 16px}
 .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:0}
 .col .pair{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}
 .col .pair i{display:block;width:42%;max-width:18px;border-radius:5px 5px 2px 2px;min-height:2px}
-.col span{font-size:calc(11px*var(--fs));color:var(--muted)}
+.col span{font-size:min(calc(11px*var(--fs)),2.9vw);color:var(--muted);white-space:nowrap;line-height:1.25;text-align:center}.col span small{display:block;font-size:.85em;opacity:.8}
 .legend{display:flex;gap:14px;font-size:calc(12px*var(--fs));color:var(--muted);margin-top:8px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 /* list */
@@ -1104,7 +1104,7 @@ function rResumen(el){
   const unidad=bm.length>36?'año':bm.length>12?'trimestre':'mes';
   const grp=[];bm.forEach(([m,i,g])=>{const y=m.slice(0,4),q=Math.ceil(+m.slice(5)/3);
     const k=unidad==='año'?y:unidad==='trimestre'?y+'T'+q:m;
-    const lbl=unidad==='año'?y:unidad==='trimestre'?`T${q}'${y.slice(2)}`:mesCorto(m);
+    const lbl=unidad==='año'?y:unidad==='trimestre'?`T${q}<small>${(!grp.length||q===1)?y:'&nbsp;'}</small>`:mesCorto(m);
     const tit=unidad==='año'?y:unidad==='trimestre'?`${q}º trimestre ${y}`:mesNombre(m);
     const last=grp[grp.length-1]; if(last&&last.k===k){last.i+=i;last.g+=g} else grp.push({k,lbl,tit,i,g})});
   const maxM=Math.max(1,...grp.flatMap(x=>[x.i,x.g]));
@@ -1808,7 +1808,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='46';
+const APP_VER='47';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
