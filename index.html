@@ -529,45 +529,12 @@ async function prepararCarpetaNube(){
   if(cfg.exists()&&cfg.data().creado) return;                       // ya preparada
   const propios=await getDocs(query(uc('movimientos'),limit(1)));
   if(!propios.empty){ await setDoc(cfgRef,{creado:hoyLocal()},{merge:true}); return }
-  // ¿hay datos anteriores (de antes de separar por persona)? Solo la cuenta de Juan Carlos puede leerlos.
-  let viejos=null;
-  try{ viejos=await getDocs(collection(FB_DB,'movimientos')) }catch(e){ viejos=null }
-  if(viejos&&!viejos.empty){
-    const ok=await confirmar(`Encontré tus datos anteriores (${viejos.size.toLocaleString('es-MX')} movimientos). ¿Copiarlos a tu carpeta personal? Solo se hace una vez.`,'Copiar mis datos','pri');
-    if(!ok) throw new Error('Copia cancelada. Vuelve a abrir la app para copiar tus datos.');
-    await copiarDatosAnteriores();
-  }else{
-    await crearCarpetaNueva();
-  }
+  await crearCarpetaNueva();
 }
 async function escribirEnLotes(ops){ // ops: [{ref,data}]
   for(let i=0;i<ops.length;i+=400){
     const b=writeBatch(FB_DB); ops.slice(i,i+400).forEach(o=>b.set(o.ref,o.data)); await b.commit();
   }
-}
-async function copiarDatosAnteriores(){
-  $('#loading').style.display=''; $('#loading').textContent='Copiando tus datos a tu carpeta personal…'; syncing(true);
-  const cuenta={}, ops=[];
-  let sumaVieja=0;
-  for(const col of FB_TODAS){
-    const snap=await getDocs(collection(FB_DB,col));
-    cuenta[col]=snap.size;
-    snap.docs.forEach(d=>{ const x=d.data(); if(col==='movimientos') sumaVieja+=Number(x.importe)||0; ops.push({ref:ud(col,d.id),data:{...x,id:d.id}}) });
-  }
-  const cfgVieja=await getDoc(doc(FB_DB,'config','app'));
-  await escribirEnLotes(ops);
-  await setDoc(ud('config','app'),{...(cfgVieja.exists()?cfgVieja.data():{}),creado:hoyLocal(),migradoDe:'datos anteriores'},{merge:true});
-  // verificación: volver a contar lo copiado
-  const dif=[]; let sumaNueva=0;
-  for(const col of FB_TODAS){
-    const snap=await getDocs(uc(col));
-    if(col==='movimientos') snap.docs.forEach(d=>sumaNueva+=Number(d.data().importe)||0);
-    if(snap.size!==cuenta[col]) dif.push(`${col}: ${cuenta[col]} → ${snap.size}`);
-  }
-  if(Math.abs(sumaNueva-sumaVieja)>0.005) dif.push(`suma de importes: ${fmt(sumaVieja)} → ${fmt(sumaNueva)}`);
-  syncing(false);
-  if(dif.length) await confirmar('⚠️ La copia no cuadra: '+dif.join('; ')+'. No borres nada y avísale a Claude.','Entendido','pri');
-  else await confirmar(`✓ Copia verificada: ${cuenta.movimientos.toLocaleString('es-MX')} movimientos (suma ${fmt(sumaVieja)}), ${cuenta.categorias} categorías, ${cuenta.metodos} cuentas, ${cuenta.presupuestos} presupuestos, ${cuenta.recurrentes} recurrentes y ${cuenta.tarjetas} tarjetas.`,'Continuar','pri');
 }
 async function crearCarpetaNueva(){
   const ops=[];
@@ -1809,7 +1776,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='48';
+const APP_VER='49';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
