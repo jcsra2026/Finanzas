@@ -404,6 +404,8 @@ function icoSugerido(nombre){const k=sinAcento(nombre);const r=ICO_SUG.find(([re
 function svgIco(n,px){return ICOS[n]?`<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${px?` style="width:${px}px;height:${px}px"`:''}>${ICOS[n]}</svg>`:''}
 function icoNombre(c){const o=(D.cat||[]).find(x=>x.nombre===c);return (o&&o.icono&&ICOS[o.icono])?o.icono:icoSugerido(c)}
 function icoCat(c){const n=icoNombre(c);return n?svgIco(n):esc(iniciales(c))}
+const COL_TIPO={'Débito':'#2563EB','Inversión':'#7C3AED','Efectivo':'#16A34A','Crédito':'#EA580C'};
+function colorMet(n){return COL_TIPO[tipoMetodo(n)]||COL_TIPO['Débito']}
 function avMet(n){const m=(D.met||[]).find(x=>x.nombre===n);const t=m?m.tipo:'Débito';return `<div class="av ac ${t==='Crédito'?'t-cre':t==='Efectivo'?'t-efe':t==='Inversión'?'t-inv':'t-deb'}">${esc(iniciales(n))}</div>`}
 function iniciales(s){return String(s||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2400)}
@@ -1074,7 +1076,7 @@ function rResumen(el){
   <div class="legend"><span><i style="background:var(--ing)"></i>Ingresos</span><span><i style="background:var(--gas)"></i>Gastos</span></div></div>
   <div class="card"><h2>Gastos por categoría</h2>${gc.length?barras(conSubs(gc,'Gasto'),gc[0][1],k=>color(k),true):'<div class="muted small">Sin gastos.</div>'}</div>
   <div class="card"><h2>Ingresos por categoría</h2>${ic.length?barras(conSubs(ic,'Ingreso'),ic[0][1],'var(--ing)',true):'<div class="muted small">Sin ingresos.</div>'}</div>
-  <div class="card"><h2>Gastos por método de pago</h2>${pmL.length?barras(pmL,pmL[0][1],k=>color(k)):'<div class="muted small">Sin gastos.</div>'}</div>`;
+  <div class="card"><h2>Gastos por método de pago</h2>${pmL.length?barras(pmL,pmL[0][1],k=>colorMet(k)):'<div class="muted small">Sin gastos.</div>'}</div>`;
   if(S.rep==='mes') bindMonth(el);
   el.querySelectorAll('[data-r]').forEach(c=>c.onclick=()=>{S.rep=c.dataset.r;rReportes()});
   el.querySelectorAll('.card').forEach((card,i)=>card.querySelectorAll(':scope > .bar-row[data-k]').forEach(r=>r.onclick=()=>{
@@ -1759,7 +1761,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='40';
+const APP_VER='41';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
