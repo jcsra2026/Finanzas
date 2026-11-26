@@ -407,7 +407,8 @@ function icoNombre(c){const o=(D.cat||[]).find(x=>x.nombre===c);return (o&&o.ico
 function icoCat(c){const n=icoNombre(c);return n?svgIco(n):esc(iniciales(c))}
 const COL_TIPO={'Débito':'#2563EB','Inversión':'#7C3AED','Efectivo':'#16A34A','Crédito':'#EA580C'};
 function colorMet(n){return COL_TIPO[tipoMetodo(n)]||COL_TIPO['Débito']}
-function avMet(n){const m=(D.met||[]).find(x=>x.nombre===n);const t=m?m.tipo:'Débito';return `<div class="av ac ${t==='Crédito'?'t-cre':t==='Efectivo'?'t-efe':t==='Inversión'?'t-inv':'t-deb'}">${esc(iniciales(n))}</div>`}
+function avMet(n){const m=(D.met||[]).find(x=>x.nombre===n);const t=m?m.tipo:'Débito';return `<div class="av ac ${t==='Crédito'?'t-cre':t==='Efectivo'?'t-efe':t==='Inversión'?'t-inv':'t-deb'}">${esc(siglasMet(n))}</div>`}
+function siglasMet(n){const w=String(n||'?').split(/\s+/).filter(x=>x&&!/^(tdc|tc|tarjeta|de|del|credito|crédito)$/i.test(x));if(!w.length)return iniciales(n);return (w.length>1?w[0][0]+w[1][0]:w[0].slice(0,2)).toUpperCase()}
 function iniciales(s){return String(s||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2400)}
 /* Confirmación propia: muestra la ventana de la app y resuelve true/false
@@ -1763,7 +1764,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='43';
+const APP_VER='44';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
