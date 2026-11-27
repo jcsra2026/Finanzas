@@ -117,6 +117,8 @@ details.anio>summary{list-style:none;display:flex;align-items:center;gap:10px;pa
 .chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
 .chip.add{border-style:dashed;color:var(--muted)}
 .search{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:0 12px;box-shadow:var(--shadow);margin-bottom:10px}
+.busca-todo{display:flex;align-items:center;justify-content:center;height:48px;margin-bottom:12px;border-radius:14px;background:var(--acc-soft);color:var(--acc);font-weight:600;font-size:calc(14px*var(--fs))}
+.imp-mas{width:36px;height:36px;border-radius:50%;background:var(--acc-soft);color:var(--acc);font-size:24px;font-weight:600;line-height:1;flex:none;margin-left:6px;display:grid;place-items:center}.imp-suma{text-align:center;color:var(--muted);font-weight:600;min-height:20px;margin:-4px 0 4px;font-size:calc(15px*var(--fs))}
 .q-x{width:28px;height:28px;border-radius:50%;place-items:center;background:var(--line);color:var(--muted);flex:none}.q-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 .search input{border:0;background:none;outline:none;flex:1;height:44px}
 .filter-tag{display:inline-flex;align-items:center;gap:6px;background:var(--acc-soft);color:var(--acc);border-radius:999px;padding:6px 10px;font-size:calc(13px*var(--fs));font-weight:600;margin:0 6px 8px 0}
@@ -139,7 +141,7 @@ nav.bottom button:active .ni{transform:scale(.92)}
 nav.bottom .fab{transition:transform .15s}
 nav.bottom .fab:active{transform:scale(.92)}
 @keyframes navpop{0%{transform:scale(.8)}55%{transform:scale(1.15)}100%{transform:scale(1)}}
-.view.on{animation:vista .45s ease-out}
+.view.on{animation:vista .50s ease-out}
 @keyframes vista{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){nav.bottom button .ni::before,nav.bottom button.on svg,.view.on{transition:none;animation:none}}
 nav.bottom .fab{width:56px;height:56px;border-radius:18px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-top:-26px;box-shadow:0 6px 18px rgba(109,40,217,.35);min-width:0;padding:0}
@@ -1055,13 +1057,13 @@ function presupuestoHTML(byC){
 function rMovs(){
   const el=$('#v-movs');
   const q=S.q.trim().toLowerCase();
-  let f=D.mov.filter(x=>enMes(x,S.mes)&&(!S.tipo||x.t===S.tipo)&&(!S.acc||x.o===S.acc||x.d===S.acc)&&(!S.cat||x.c===S.cat)&&(!S.sub||x.s===S.sub));
+  let f=D.mov.filter(x=>(q||enMes(x,S.mes))&&(!S.tipo||x.t===S.tipo)&&(!S.acc||x.o===S.acc||x.d===S.acc)&&(!S.cat||x.c===S.cat)&&(!S.sub||x.s===S.sub));
   if(q) f=f.filter(x=>(x.c+' '+x.s+' '+x.n+' '+x.o+' '+x.d+' '+x.m).toLowerCase().includes(q));
   f=ordenarRecientes(f);
   const grupos={}; f.forEach(x=>(grupos[x.f]=grupos[x.f]||[]).push(x));
   const ing=suma(f,'Ingreso'),gas=suma(f,'Gasto');
   const tags=[S.acc&&['acc','Cuenta: '+S.acc],S.cat&&['cat','Categoría: '+S.cat],S.sub&&['sub',S.sub]].filter(Boolean);
-  el.innerHTML=monthBar()+`
+  el.innerHTML=(q?'<div class="busca-todo">Buscando en todos los meses</div>':monthBar())+`
   <div class="search"><svg viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><div class="ce" contenteditable="true" role="textbox" data-ce id="q" enterkeyhint="done" data-ph="Buscar nota, categoría, importe…">${esc(S.q)}</div><button class="q-x" id="qX" aria-label="Borrar búsqueda" style="display:${S.q.trim()?'grid':'none'}"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="chips">${['','Gasto','Ingreso','Transferencia'].map(t=>`<button class="chip ${S.tipo===t?'on':''}" data-t="${t}">${t||'Todos'}</button>`).join('')}</div>
   ${tags.map(([k,l])=>`<span class="filter-tag">${esc(l)} <button data-x="${k}" style="color:inherit">✕</button></span>`).join('')}
@@ -1607,11 +1609,12 @@ function activarCampos(root){
   });
 }
 new MutationObserver(()=>activarCampos()).observe(document.documentElement,{childList:true,subtree:true});
-function limpiarImporte(t){ // solo números y un punto decimal (la coma cuenta como punto), máximo 2 decimales
-  t=String(t).replace(/,/g,'.').replace(/[^0-9.]/g,''); const i=t.indexOf('.');
-  if(i>=0) t=t.slice(0,i+1)+t.slice(i+1).replace(/\./g,'').slice(0,2);
-  return t;
+function limpiarImporte(t){ // números con un punto decimal (la coma cuenta como punto), máx. 2 decimales; se pueden sumar con +
+  const uno=x=>{x=x.replace(/[^0-9.]/g,'');const i=x.indexOf('.');if(i>=0)x=x.slice(0,i+1)+x.slice(i+1).replace(/\./g,'').slice(0,2);return x};
+  return String(t).replace(/,/g,'.').replace(/[^0-9.+]/g,'').replace(/^\++/,'').replace(/\+{2,}/g,'+').split('+').map(uno).join('+');
 }
+function evalImporte(t){return String(t||'').split('+').reduce((a,x)=>a+(parseFloat(x)||0),0)}
+function textoImporte(v){return (Math.round(v*100)/100).toFixed(2).replace(/\.00$/,'')}
 function cursorAlFinal(el){ const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=getSelection(); s.removeAllRanges(); s.addRange(r) }
 function chipsHTML(lista,sel,attr,extra=''){return lista.map(v=>`<button class="chip ${v===sel?'on':''}" data-${attr}="${esc(v)}">${esc(v)}</button>`).join('')+extra}
 
@@ -1625,7 +1628,7 @@ function dibujarForm(focus){
   const lblO=esT?'Desde':F.t==='Ingreso'?'Recibido en':'Pagado con';
   $('#formBody').innerHTML=(F._voz?`<div class="voz-banner"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>«${esc(F._voz)}»</span></div>`:'')+`
     <div class="seg">${['Gasto','Ingreso','Transferencia'].map(t=>`<button data-t="${t}" class="${F.t===t?'on':''}">${t}</button>`).join('')}</div>
-    <div class="amount"><span>$</span><div id="fImp" class="ce imp" contenteditable="true" role="textbox" inputmode="decimal" enterkeyhint="done" data-ph="0.00">${esc(F.m===''?'':F.m)}</div></div>
+    <div class="amount"><span>$</span><div id="fImp" class="ce imp" contenteditable="true" role="textbox" inputmode="decimal" enterkeyhint="done" data-ph="0.00">${esc(F.m===''?'':F.m)}</div><button class="imp-mas" id="fMas" aria-label="Sumar otro importe">+</button></div><div class="imp-suma" id="fSuma"></div>
     ${esT?'':`<div class="lbl">Categoría</div><div class="chips wrap">${chipsHTML(cats,F.c,'c')}</div>
     ${F.c?`<div class="lbl">Subcategoría</div><div class="chips wrap">${chipsHTML(subs,F.s,'s',`<button class="chip add" id="addSub">+ Nueva</button>`)}</div><div id="newSubBox"></div>`:''}`}
     <div class="lbl">${lblO}</div><div class="chips wrap">${chipsHTML(ordenarPorUso(mets,usoO),F.o,'o')}</div>
@@ -1639,7 +1642,12 @@ function dibujarForm(focus){
   const body=$('#formBody');
   /* Importe y Nota son campos "editables" (no <input>): así Chrome no muestra su barra de contraseñas/tarjetas/direcciones */
   const imp=$('#fImp');
-  imp.oninput=()=>{ const t=imp.textContent, l=limpiarImporte(t); if(l!==t){ imp.textContent=l; cursorAlFinal(imp) } F.m=l };
+  const suma=()=>{const t=String(F.m||''),el=$('#fSuma');el.textContent=t.includes('+')&&t.split('+').filter(Boolean).length>1?'= $'+fmt(evalImporte(t)).replace(/^\$/,''):''};
+  imp.oninput=()=>{ const t=imp.textContent, l=limpiarImporte(t); if(l!==t){ imp.textContent=l; cursorAlFinal(imp) } F.m=l; suma() };
+  imp.onblur=()=>{ if(String(F.m).includes('+')){ const v=evalImporte(F.m); F.m=v?textoImporte(v):''; imp.textContent=F.m; suma() } };
+  $('#fMas').onmousedown=e=>e.preventDefault();
+  $('#fMas').onclick=()=>{ if(!String(F.m).trim()||String(F.m).endsWith('+')){imp.focus();cursorAlFinal(imp);return} F.m=String(F.m)+'+'; imp.textContent=F.m; imp.focus(); cursorAlFinal(imp); suma() };
+  suma();
   imp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();imp.blur()}};
   imp.onpaste=e=>{e.preventDefault();document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text'))};
   if(focus&&!F.id) setTimeout(()=>imp.focus(),80);
@@ -1672,12 +1680,15 @@ function dibujarForm(focus){
 }
 
 async function guardar(otro){
-  const F=S.form; const imp=parseFloat(String(F.m).replace(/[^0-9.]/g,''));
+  const F=S.form; const imp=evalImporte(F.m);
   if(!(imp>0)) return toast('Escribe el importe');
   if(F.t!=='Transferencia'&&!F.c) return toast('Elige una categoría');
   if(!F.o) return toast(F.t==='Transferencia'?'Elige la cuenta de origen':'Elige el método de pago');
   if(F.t==='Transferencia'&&!F.d) return toast('Elige la cuenta destino');
   const nuevo=!F.id;
+  if(nuevo){ const c=F.t==='Transferencia'?'Transferencia':F.c, r=Math.round(imp*100)/100;
+    const dup=D.mov.find(x=>x.t===F.t&&x.f===F.f&&x.c===c&&Math.abs(x.m-r)<0.005);
+    if(dup&&!(await confirmar(`Ya registraste ${dup.s||dup.c} por ${fmt(dup.m)} el ${diaTexto(dup.f).toLowerCase()} (${dup.o}).\n\n¿Guardarlo otra vez?`,'Guardar','pri'))) return; }
   const m={id:F.id||('n'+Date.now().toString(36)),f:F.f,t:F.t,c:F.t==='Transferencia'?'Transferencia':F.c,s:F.s||'',o:F.o,d:F.t==='Transferencia'?F.d:'',m:Math.round(imp*100)/100,n:(F.n||'').trim()};
   // actualización optimista
   const i=D.mov.findIndex(x=>x.id===m.id); if(i>=0) D.mov[i]=m; else D.mov.push(m);
@@ -1856,7 +1867,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='52';
+const APP_VER='53';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
