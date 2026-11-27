@@ -146,7 +146,7 @@ nav.bottom .fab{width:56px;height:56px;border-radius:18px;background:var(--acc);
 nav.bottom .fab svg{width:28px;height:28px;stroke-width:2.4}
 /* sheet (form) */
 .sheet{position:fixed;top:0;left:0;right:0;height:100vh;height:100dvh;z-index:50;background:var(--bg);display:none;flex-direction:column}
-.sheet.on{display:flex;animation:subir .32s cubic-bezier(.2,.8,.2,1)}.sheet.saliendo{display:flex;animation:bajar .24s ease-in forwards;pointer-events:none}@keyframes subir{from{transform:translateY(100%)}to{transform:none}}@keyframes bajar{from{transform:none}to{transform:translateY(100%)}}@media (prefers-reduced-motion: reduce){.sheet.on,.sheet.saliendo{animation:none}.sheet.saliendo{display:none}}
+.sheet.on{display:flex;animation:subir .45s cubic-bezier(.2,.8,.2,1)}.sheet.saliendo{display:flex;animation:bajar .24s ease-in forwards;pointer-events:none}@keyframes subir{from{transform:translateY(100%)}to{transform:none}}@keyframes bajar{from{transform:none}to{transform:translateY(100%)}}@media (prefers-reduced-motion: reduce){.sheet.on,.sheet.saliendo{animation:none}.sheet.saliendo{display:none}}
 .sheet header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;border-bottom:1px solid var(--line);background:var(--card)}
 .sheet header h3{flex:1;margin:0;font-size:calc(17px*var(--fs))}
 .sheet .body{flex:1;overflow-y:auto;padding:14px 16px 20px;max-width:760px;width:100%;margin:0 auto}
