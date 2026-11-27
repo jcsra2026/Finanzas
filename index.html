@@ -83,9 +83,15 @@ main{padding:0 16px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 /* list */
 .day{display:flex;justify-content:space-between;font-size:calc(12px*var(--fs));color:var(--muted);font-weight:600;padding:14px 4px 6px}
-.items{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.items{position:relative;background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
 .item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left}
 .item:last-child{border-bottom:0}
+.item{touch-action:pan-y;position:relative;z-index:1;background:var(--card)}.item.sw-mov{border-radius:0}
+.sw-bg{position:absolute;left:0;right:0;z-index:0;display:flex;align-items:center;padding:0 24px;transition:background .15s}
+.sw-bg svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.sw-bg.ed{background:#16A34A2E;color:#16A34A}.sw-bg.del{background:#DC26262E;color:#DC2626}
+.sw-bg.ed.pasa{background:#16A34A;color:#fff}.sw-bg.del.pasa{background:#DC2626;color:#fff}.sw-bg.pasa svg{transform:scale(1.2)}
+.upd.fuera{opacity:0;transition:opacity .25s}
 .item:active{background:var(--acc-soft)}
 .av .ico{width:calc(20px*var(--fs));height:calc(20px*var(--fs))}
 .av:has(>svg){background:none!important}.av:not(#cPrev):has(>svg){width:30px}.av:not(#cPrev)>svg.ico{width:calc(26px*var(--fs));height:calc(26px*var(--fs))}.av>svg:not(.ico){width:24px!important;height:24px!important}#cPrev>svg.ico{width:44px!important;height:44px!important}
@@ -863,7 +869,44 @@ function itemHTML(x){
   const av=x.t==='Transferencia'?'<svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M7 10h14l-4-4M17 14H3l4 4"/></svg>':icoCat(x.c);
   return `<button class="item" data-id="${esc(x.id)}"><div class="av" style="background:${col}22;color:${col}">${av}</div><div class="mid"><div class="t1">${esc(nombre)}${x._pend?'<span class="pend">pendiente</span>':''}</div><div class="t2">${esc(det)}</div></div><div class="amt num ${cls}">${sig}${fmt(x.m)}</div></button>`;
 }
-function bindItems(root){root.querySelectorAll('.item[data-id]').forEach(b=>b.onclick=()=>{const m=D.mov.find(x=>x.id===b.dataset.id);if(m)abrirForm(m)})}
+function bindItems(root){root.querySelectorAll('.item[data-id]').forEach(b=>{b.onclick=()=>{if(b._sw){b._sw=false;return}const m=D.mov.find(x=>x.id===b.dataset.id);if(m)abrirForm(m)};deslizable(b)})}
+/* Deslizar un movimiento: a la derecha = editar, a la izquierda = borrar (con Deshacer) */
+const ICO_LAPIZ='<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const ICO_BOTE='<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>';
+function deslizable(it){
+  let x0=0,y0=0,dx=0,modo=null,bg=null;
+  const limite=()=>it.offsetWidth*0.33;
+  const pintar=()=>{ if(!bg) return; const der=dx>0, pasa=Math.abs(dx)>limite();
+    bg.className='sw-bg '+(der?'ed':'del')+(pasa?' pasa':''); bg.innerHTML=der?ICO_LAPIZ:ICO_BOTE; bg.style.justifyContent=der?'flex-start':'flex-end' };
+  const quitarBg=()=>{ if(bg){bg.remove();bg=null} };
+  it.addEventListener('touchstart',e=>{const t=e.touches[0];modo=(t.clientX<28||t.clientX>innerWidth-28)?'no':null;x0=t.clientX;y0=t.clientY;dx=0},{passive:true});
+  it.addEventListener('touchmove',e=>{ if(modo==='no'||modo==='v') return; const t=e.touches[0], mx=t.clientX-x0, my=t.clientY-y0;
+    if(!modo){ if(Math.abs(mx)<10&&Math.abs(my)<10) return; modo=Math.abs(mx)>Math.abs(my)*1.4?'h':'v'; if(modo!=='h') return;
+      bg=document.createElement('div'); bg.style.top=it.offsetTop+'px'; bg.style.height=it.offsetHeight+'px'; it.parentNode.insertBefore(bg,it); it.classList.add('sw-mov') }
+    dx=mx; it.style.transition='none'; it.style.transform=`translateX(${dx}px)`; pintar() },{passive:true});
+  it.addEventListener('touchend',()=>{ if(modo!=='h') return; it._sw=true; modo=null;
+    const id=it.dataset.id, m=D.mov.find(x=>x.id===id); it.style.transition='transform .2s ease-out';
+    if(dx>limite()&&m){ it.style.transform=''; setTimeout(()=>{quitarBg();it.classList.remove('sw-mov');abrirForm(m)},180) }
+    else if(dx<-limite()&&m){ it.style.transform='translateX(-110%)'; setTimeout(()=>{quitarBg();borrarConDeshacer(m)},200) }
+    else { it.style.transform=''; setTimeout(()=>{quitarBg();it.classList.remove('sw-mov')},200) }
+    setTimeout(()=>{it._sw=false},400) });
+  it.addEventListener('touchcancel',()=>{modo=null;it.style.transform='';quitarBg();it.classList.remove('sw-mov')});
+}
+let DESHACER_T=null;
+async function borrarConDeshacer(m){
+  const copia={...m}; delete copia._pend;
+  D.mov=D.mov.filter(x=>x.id!==m.id); render(); syncing(true);
+  try{ await api('borrarMovimiento',m.id); store.set(CACHE_KEY,D) }
+  catch(e){ if(esRed(e)){const q=cola();q.push({fn:'borrarMovimiento',args:[m.id]});store.set(QUEUE_KEY,q)} else {toast('Error: '+(e.message||e));await cargar(true)} }
+  syncing(false);
+  let bar=$('#undoBar'); if(bar) bar.remove(); clearTimeout(DESHACER_T);
+  bar=document.createElement('div'); bar.id='undoBar'; bar.className='upd'; bar.innerHTML='<span>Borrado</span><button id="undoBtn">Deshacer</button>'; document.body.appendChild(bar);
+  $('#undoBtn').onclick=async()=>{ clearTimeout(DESHACER_T); bar.remove(); D.mov.push(copia); render(); syncing(true);
+    try{ await api('guardarMovimiento',copia); store.set(CACHE_KEY,D); toast('Restaurado') }
+    catch(e){ if(esRed(e)){const q=cola();q.push({fn:'guardarMovimiento',args:[copia],tmp:copia.id});store.set(QUEUE_KEY,q);toast('Se restaurará al reconectar')} else toast('Error: '+(e.message||e)) }
+    syncing(false) };
+  DESHACER_T=setTimeout(()=>{bar.classList.add('fuera');setTimeout(()=>bar.remove(),250)},5000);
+}
 function barras(items,max,col,click){
   const aw=Math.max(...items.map(([,v])=>fmt0(v).length),1);
   return items.map(([k,v,extra])=>`<div class="bar-row ${click?'click':''}" style="--aw:${aw}" ${click?`data-k="${esc(k)}"`:''}><span class="name">${esc(k)}</span><div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%;background:${typeof col==='function'?col(k):col}"></div></div><span class="num small">${fmt0(v)}</span></div>${extra||''}`).join('');
@@ -1813,7 +1856,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='51';
+const APP_VER='52';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
