@@ -111,6 +111,7 @@ details.anio>summary{list-style:none;display:flex;align-items:center;gap:10px;pa
 .chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
 .chip.add{border-style:dashed;color:var(--muted)}
 .search{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:0 12px;box-shadow:var(--shadow);margin-bottom:10px}
+.q-x{width:28px;height:28px;border-radius:50%;place-items:center;background:var(--line);color:var(--muted);flex:none}.q-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 .search input{border:0;background:none;outline:none;flex:1;height:44px}
 .filter-tag{display:inline-flex;align-items:center;gap:6px;background:var(--acc-soft);color:var(--acc);border-radius:999px;padding:6px 10px;font-size:calc(13px*var(--fs));font-weight:600;margin:0 6px 8px 0}
 /* accounts */
@@ -1018,7 +1019,7 @@ function rMovs(){
   const ing=suma(f,'Ingreso'),gas=suma(f,'Gasto');
   const tags=[S.acc&&['acc','Cuenta: '+S.acc],S.cat&&['cat','Categoría: '+S.cat],S.sub&&['sub',S.sub]].filter(Boolean);
   el.innerHTML=monthBar()+`
-  <div class="search"><svg viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><div class="ce" contenteditable="true" role="textbox" data-ce id="q" enterkeyhint="done" data-ph="Buscar nota, categoría, importe…">${esc(S.q)}</div></div>
+  <div class="search"><svg viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><div class="ce" contenteditable="true" role="textbox" data-ce id="q" enterkeyhint="done" data-ph="Buscar nota, categoría, importe…">${esc(S.q)}</div><button class="q-x" id="qX" aria-label="Borrar búsqueda" style="display:${S.q.trim()?'grid':'none'}"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="chips">${['','Gasto','Ingreso','Transferencia'].map(t=>`<button class="chip ${S.tipo===t?'on':''}" data-t="${t}">${t||'Todos'}</button>`).join('')}</div>
   ${tags.map(([k,l])=>`<span class="filter-tag">${esc(l)} <button data-x="${k}" style="color:inherit">✕</button></span>`).join('')}
   <div class="small muted" style="padding:2px 4px">${f.length} movimientos · <span class="ing">+${fmt(ing)}</span> · <span class="gas">-${fmt(gas)}</span></div>
@@ -1026,7 +1027,9 @@ function rMovs(){
     const d=new Date(fe+'T12:00:00'); const neto=suma(arr,'Ingreso')-suma(arr,'Gasto');
     return `<div class="day"><span>${diaTexto(fe)}</span><span class="num">${neto?fmt(neto):''}</span></div><div class="items">${arr.map(itemHTML).join('')}</div>`}).join(''):'<div class="empty">No hay movimientos con estos filtros.</div>'}`;
   bindMonth(el); bindItems(el);
-  const qi=el.querySelector('#q'); qi.oninput=()=>{S.q=qi.value;clearTimeout(qi._t);qi._t=setTimeout(()=>{rMovs();const n=$('#q');n.focus();cursorAlFinal(n)},250)};
+  const qi=el.querySelector('#q'), qx=el.querySelector('#qX');
+  qx.onclick=()=>{clearTimeout(qi._t);S.q='';rMovs()};
+  qi.oninput=()=>{S.q=qi.value;qx.style.display=String(S.q).trim()?'grid':'none';clearTimeout(qi._t);qi._t=setTimeout(()=>{rMovs();const n=$('#q');n.focus();cursorAlFinal(n)},250)};
   el.querySelectorAll('.chip[data-t]').forEach(c=>c.onclick=()=>{S.tipo=c.dataset.t;rMovs()});
   el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{const k=b.dataset.x;if(k==='cat'){S.cat='';S.sub=''}else S[k]='';rMovs()});
 }
@@ -1810,7 +1813,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='50';
+const APP_VER='51';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
