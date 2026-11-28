@@ -297,7 +297,7 @@ svg.chart{width:100%;height:auto;stroke:none;fill:none;display:block;margin:4px 
 .tiny-btn{font-size:calc(13px*var(--fs));color:var(--acc);font-weight:600;padding:6px 8px;border-radius:8px}
 .tiny-btn:active{background:var(--acc-soft)}
 details.cat-block{border-bottom:1px solid var(--line)}
-details.aj>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}details.aj>summary::-webkit-details-marker{display:none}details.aj>summary h2{margin:0;flex:1}details.aj>summary .aj-res{color:var(--muted);font-size:calc(13px*var(--fs))}details.aj>summary svg{width:20px;height:20px;color:var(--muted);transition:transform .2s;flex:none}details.aj[open]>summary svg{transform:rotate(180deg)}details.aj[open]>summary{margin-bottom:12px}details.aj[open]>summary~*{animation:ddin .18s ease-out}
+details.aj>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}details.aj>summary::-webkit-details-marker{display:none}details.aj>summary h2{margin:0;flex:1}details.aj>summary .aj-res{color:var(--muted);font-size:calc(13px*var(--fs))}details.aj>summary svg{width:20px;height:20px;color:var(--muted);transition:transform .2s;flex:none}details.aj[open]>summary svg{transform:rotate(180deg)}details.aj.cerrando>summary svg{transform:none}details.aj>summary svg{transition:transform .28s ease}details.aj[open]>summary{margin-bottom:12px}details.aj[open]>summary~*{animation:ddin .18s ease-out}
 details.cat-block summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer}
 details.cat-block summary::-webkit-details-marker{display:none}
 details.cat-block .subs{padding:0 0 10px 48px}
@@ -1390,6 +1390,23 @@ function rInversiones(el){
 }
 
 /* ============ ajustes / catálogos ============ */
+/* Abrir y cerrar secciones desplegables con movimiento suave */
+function detallesSuaves(root){
+  root.querySelectorAll('details.aj,details.cat-block').forEach(d=>{
+    const sm=d.querySelector(':scope>summary'); if(!sm||sm._suave) return; sm._suave=true;
+    sm.addEventListener('click',e=>{
+      if(e.target.closest('button')) return;            // botones dentro del encabezado (p. ej. Editar)
+      e.preventDefault(); if(d._anim) return;
+      if(matchMedia('(prefers-reduced-motion: reduce)').matches){ d.open=!d.open; return }
+      const ini=d.offsetHeight, abrir=!d.open;
+      if(abrir) d.open=true; else d.classList.add('cerrando');
+      d.style.overflow='hidden';
+      let fin; if(abrir){ fin=d.offsetHeight } else { d.open=false; fin=d.offsetHeight; d.open=true }
+      d._anim=d.animate([{height:ini+'px'},{height:fin+'px'}],{duration:abrir?320:260,easing:'cubic-bezier(.2,.8,.2,1)'});
+      d._anim.onfinish=d._anim.oncancel=()=>{ if(!abrir) d.open=false; d.classList.remove('cerrando'); d.style.overflow=''; d._anim=null };
+    });
+  });
+}
 function rAjustes(){
   const el=$('#v-ajustes');
   const usoCat={},usoSub={},usoMet={};
@@ -1433,6 +1450,7 @@ function rAjustes(){
     if(res[key]!==undefined) sm.insertAdjacentHTML('beforeend',`<span class="aj-res">${esc(String(res[key]))}</span>`);
     sm.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
     d.append(sm,...card.childNodes); card.replaceWith(d); d.ontoggle=()=>{S.ajOpen[key]=d.open} });
+  detallesSuaves(el);
   el.querySelectorAll('[data-ec]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();formCat('cat',D.cat.find(c=>String(c.id)===b.dataset.ec))});
   el.querySelectorAll('[data-es]').forEach(b=>b.onclick=()=>formCat('sub',D.sub.find(s=>String(s.id)===b.dataset.es)));
   el.querySelectorAll('[data-em]').forEach(b=>b.onclick=()=>formCat('met',D.met.find(m=>String(m.id)===b.dataset.em)));
@@ -1933,7 +1951,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='55';
+const APP_VER='56';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
