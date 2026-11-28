@@ -149,9 +149,11 @@ nav.bottom button:active .ni{transform:scale(.92)}
 nav.bottom .fab{transition:transform .15s}
 nav.bottom .fab:active{transform:scale(.92)}
 @keyframes navpop{0%{transform:scale(.8)}55%{transform:scale(1.15)}100%{transform:scale(1)}}
-.view.on{animation:vista .32s ease-out}
+.view.on{animation:vista .32s ease-out}.view.on.entra{animation:entra .32s cubic-bezier(.2,.8,.2,1)}.view.on.atras{animation:atras .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes entra{from{opacity:0;transform:translateX(56px)}to{opacity:1;transform:none}}@keyframes atras{from{opacity:0;transform:translateX(-56px)}to{opacity:1;transform:none}}
+html,body{overflow-x:clip}
 @keyframes vista{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion: reduce){nav.bottom button .ni::before,nav.bottom button.on svg,.view.on{transition:none;animation:none}}
+@media (prefers-reduced-motion: reduce){nav.bottom button .ni::before,nav.bottom button.on svg,.view.on,.view.on.entra,.view.on.atras{transition:none;animation:none}}
 nav.bottom .fab{width:56px;height:56px;border-radius:18px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-top:-26px;box-shadow:0 6px 18px rgba(109,40,217,.35);min-width:0;padding:0}
 nav.bottom .fab svg{width:28px;height:28px;stroke-width:2.4}
 /* sheet (form) */
@@ -824,14 +826,22 @@ function ir(v,desdeAtras,pestana){
   // pestana=true: se tocó una pestaña de abajo. Si no, es un "detalle" (tocaste algo dentro de una página) y "atrás" regresa a esa página.
   if(!desdeAtras&&v!==S.view&&S.view!=='setup'){
     S.scroll[S.view]=scrollY;
-    if(pestana&&v==='inicio'){ if(nivel()>0){ history.go(-nivel()); return } }
+    if(pestana&&v==='inicio'){ if(nivel()>0){ S.animPestana=true; history.go(-nivel()); return } }
     else if(pestana&&nivel()>1){ // desde un detalle: vuelve al nivel de pestañas y cambia a la pestaña elegida
-      S.despues=()=>{ history.replaceState({v,d:1},''); ir(v,true) }; history.go(-(nivel()-1)); return }
+      S.despues=()=>{ history.replaceState({v,d:1},''); ir(v,true,true) }; history.go(-(nivel()-1)); return }
     else if(pestana&&S.view!=='inicio') history.replaceState({v,d:nivel()},'');
-    else history.pushState({v,d:nivel()+1},'');
+    else history.pushState({v,d:nivel()+1,det:!pestana?1:0},'');
   }
   const mismo=v===S.view;
   if(!mismo) S.scroll[S.view]=scrollY;
+  // animación: pestañas = fundido · entrar a un detalle = desde la derecha · regresar de un detalle = desde la izquierda
+  let anim='';
+  if(!mismo){
+    if(desdeAtras){ anim=(S.esDetalle&&!pestana&&!S.animPestana)?'atras':''; S.animPestana=false; S.esDetalle=!!(history.state&&history.state.det) }
+    else if(pestana||S.view==='setup'){ S.esDetalle=false }
+    else { anim='entra'; S.esDetalle=true }
+    const nv=$('#v-'+v); if(nv){ nv.classList.remove('entra','atras'); if(anim) nv.classList.add(anim) }
+  }
   S.view=v; document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
   document.querySelectorAll('nav.bottom button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   cerrarMenuRep(true); ponerTitulo(); render();
@@ -1923,7 +1933,7 @@ window.__voz=interpretarVoz;
 // acceso de solo lectura para pruebas
 window.__app={get S(){return S},get D(){return D}};
 /* ============ bloqueo con huella o PIN ============ */
-const APP_VER='54';
+const APP_VER='55';
 const CAND_KEY='misfinanzas_candado', CAND_MIN=5;
 const CAND=()=>store.get(CAND_KEY);
 const azar=n=>crypto.getRandomValues(new Uint8Array(n));
